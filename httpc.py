@@ -11,7 +11,9 @@ def parse_commands(args):
     request['host'] = parsed_url.hostname
     # Default web port is 80
     request['port'] = 80 if parsed_url.port is None else parsed_url.port
-    request['path'] = parsed_url.path + '?' + parsed_url.query
+    request['path'] = parsed_url.path
+    if parsed_url.query != '':
+        request['path'] += '?' + parsed_url.query
     request['type'] = args.request.upper()
     # If headers in arguments, join them in string dividing by line breaks
     request['headers'] = '\n' + '\n'.join(args.h) if args.h != '' else ''
@@ -31,7 +33,7 @@ def send_request(req: dict):
         response = conn.recv(1024)  # Receive response, read up to 1024 bytes
         response = response.decode("utf-8")
         if not request['verbose']:
-            response = response.split('\r\n\r\n')[1] # Get just response body
+            response = response.split('\r\n\r\n')[1]  # Get just response body
         sys.stdout.write(response)
     finally:
         conn.close()
@@ -65,6 +67,7 @@ Post executes a HTTP POST request for a given URL with inline data or from file.
 Either [-d] or [-f] can be used but not both.
 """
 
+
 parser = argparse.ArgumentParser(description=help_msg, add_help=False)
 parser.add_argument("request", help=request_help_msg, choices=['post', 'get'])
 parser.add_argument("URL", help="URL for request")
@@ -73,6 +76,6 @@ parser.add_argument("-v", help="Return verbose response", action="store_true", d
 parser.add_argument("-h", help="Headers for request", nargs='*', default='')
 
 arguments = parser.parse_args()
-print(arguments) # For testing purposes
+print("Arguments : " + str(arguments))  # For testing purposes
 request = parse_commands(arguments)
 send_request(request)
