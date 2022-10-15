@@ -94,7 +94,7 @@ parser.add_argument("URL", help="URL for request")
 parser.add_argument('-H', '--help', action='help', help="Show help message")
 parser.add_argument("-v", help="Return verbose response", action="store_true", default=False)
 parser.add_argument("-h", help="Headers for request", nargs='*', default='')
-parser.add_argument("-d", help="inline data for post request", nargs='*', default='')
+parser.add_argument("-d", "--d", help="inline data for post request", nargs='*', default='')
 parser.add_argument("-f", help="file for post request", nargs='*', default='')
 arguments = parser.parse_args()
 
