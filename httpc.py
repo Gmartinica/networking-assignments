@@ -18,6 +18,17 @@ def parse_commands(args):
     # If headers in arguments, join them in string dividing by line breaks
     request['headers'] = '\n' + '\n'.join(args.h) if args.h != '' else ''
     request['verbose'] = args.v
+    if args.d:
+        request['data'] = '\n' + '\n'.join(args.d) if args.d != '' else ''
+    elif args.f:
+        filepath ='\n' + '\n'.join(args.f)
+        filepath2 = filepath.split('\n')[1]
+        file = open(filepath2, "r")
+        request['data'] = "\n"+file.read()
+        file.close()
+
+
+
     return request
 
 
@@ -26,8 +37,17 @@ def send_request(req: dict):
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         conn.connect((req['host'], req['port']))
-        req = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\n\n"
-        print("REQUEST:\n" + req)  # For testing purposes
+        if req['type'].casefold() == "get".casefold():
+            req = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\n\n"
+            print("REQUEST:\n" + req)  # For testing purposes
+        elif req['type'].casefold() == "post".casefold():
+            req = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\nContent-Length:{(len(str(req['data'])))}\n{req['data']}\n"
+            print("REQUEST:\n" + req)  # For testing purposes
+        else:
+            print("""Can not recognize request type keyword
+            Please use either get or send""")
+
+       # print("REQUEST:\n" + req)  # For testing purposes
         req = req.encode("utf-8")
         conn.sendall(req)  # Sends req
         response = conn.recv(1024)  # Receive response, read up to 1024 bytes
@@ -74,8 +94,26 @@ parser.add_argument("URL", help="URL for request")
 parser.add_argument('-H', '--help', action='help', help="Show help message")
 parser.add_argument("-v", help="Return verbose response", action="store_true", default=False)
 parser.add_argument("-h", help="Headers for request", nargs='*', default='')
-
+parser.add_argument("-d", help="inline data for post request", nargs='*', default='')
+parser.add_argument("-f", help="file for post request", nargs='*', default='')
 arguments = parser.parse_args()
-print("Arguments : " + str(arguments))  # For testing purposes
+
+if arguments.request.casefold() == "get".casefold():
+
+    if arguments.f or arguments.d:
+        print("-d and -f arguments are only for Post request")
+        exit(1)
+else:
+    if arguments.f == '' and arguments.d == '':
+        print("Pass and argument for Post request, Have a look at -v and -f arguments")
+    if arguments.f != '' and arguments.d != '':
+        print("both -f and -d if arguments can not exist together")
+        exit(1)
+print("Arguments: ---->>>>> : " + str(arguments))  # For testing purposes
+
+
+
+# if parser.f:
+#     print("filename: {}".format(parser.f))
 request = parse_commands(arguments)
 send_request(request)
