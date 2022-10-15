@@ -2,7 +2,10 @@ import socket
 import argparse
 import sys
 from urllib.parse import urlparse
+import re
 
+header_loc_regex = 'Location:(.*)\n'
+html_status_code = 'HTTP\/[\d.]+\s(\d{3})'
 
 def parse_commands(args):
     """Given a dict of command line arguments, return a dict with the HTTP req elements"""
@@ -35,23 +38,37 @@ def parse_commands(args):
 def send_request(req: dict):
     """Sends either GET or POST req to the specified server"""
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    status_code = '3'
     try:
         conn.connect((req['host'], req['port']))
-        if req['type'].casefold() == "get".casefold():
-            req = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\n\n"
-            print("REQUEST:\n" + req)  # For testing purposes
-        elif req['type'].casefold() == "post".casefold():
-            req = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\nContent-Length:{(len(str(req['data'])))}\n{req['data']}\n"
-            print("REQUEST:\n" + req)  # For testing purposes
-        else:
-            print("""Can not recognize request type keyword
-            Please use either get or send""")
+        while status_code.startswith('3'):
+            if req['type'].casefold() == "get".casefold():
+                req_msg = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\n\n"
+                # print("REQUEST:\n" + req_msg)  # For testing purposes
+            elif req['type'].casefold() == "post".casefold():
+                req_msg = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\nContent-Length:{(len(str(req['data'])))}\n{req['data']}\n"
+                # print("REQUEST:\n" + req_msg)  # For testing purposes
+            else:
+                print("""Can not recognize request type keyword
+                Please use either get or send""")
 
-       # print("REQUEST:\n" + req)  # For testing purposes
-        req = req.encode("utf-8")
-        conn.sendall(req)  # Sends req
-        response = conn.recv(1024)  # Receive response, read up to 1024 bytes
-        response = response.decode("utf-8")
+           # print("REQUEST:\n" + req)  # For testing purposes
+            req_msg = req_msg.encode("utf-8")
+            conn.sendall(req_msg)  # Sends req
+            response = conn.recv(1024)  # Receive response, read up to 1024 bytes
+            response = response.decode("utf-8")
+
+            # If redirect
+            status = re.search(html_status_code, response)
+            status_code = status.group(1)
+            # If response status is 3xx
+            if status_code.startswith('3'):
+                # Redirect to location in header. Recursive function
+                new_location = re.search(header_loc_regex, response)
+                if new_location:
+                    parsed_relocation = urlparse(new_location.group(1))
+                    req['path'] = parsed_relocation.path
+
         if not request['verbose']:
             response = response.split('\r\n\r\n')[1]  # Get just response body
         sys.stdout.write(response)
