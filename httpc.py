@@ -7,6 +7,7 @@ import re
 header_loc_regex = 'Location:(.*)\n'
 html_status_code = 'HTTP\/[\d.]+\s(\d{3})'
 
+
 def parse_commands(args):
     """Given a dict of command line arguments, return a dict with the HTTP req elements"""
     request = {}
@@ -22,15 +23,17 @@ def parse_commands(args):
     request['headers'] = '\n' + '\n'.join(args.h) if args.h != '' else ''
     request['verbose'] = args.v
     if args.d:
-        request['data'] = '\n' + '\n'.join(args.d) if args.d != '' else ''
+        print(args.d)
+        request['data'] = '\n'.join(args.d) if args.d != '' else ''
     elif args.f:
-        filepath ='\n' + '\n'.join(args.f)
+        filepath = '\n' + '\n'.join(args.f)
         filepath2 = filepath.split('\n')[1]
-        file = open(filepath2, "r")
-        request['data'] = "\n"+file.read()
-        file.close()
-
-
+        try:
+            file = open(filepath2, "r")
+            request['data'] = file.read()
+            file.close()
+        except IOError:
+            print("Could not read from file")
 
     return request
 
@@ -41,18 +44,20 @@ def send_request(req: dict):
     status_code = '3'
     try:
         conn.connect((req['host'], req['port']))
+        # TODO: Have a count that maxes out at 10 redirects and then exits, where the response to the console is like too many redirects or something
+        # TODO: Implement -o file to write response
         while status_code.startswith('3'):
             if req['type'].casefold() == "get".casefold():
                 req_msg = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\n\n"
                 # print("REQUEST:\n" + req_msg)  # For testing purposes
             elif req['type'].casefold() == "post".casefold():
-                req_msg = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\nContent-Length:{(len(str(req['data'])))}\n{req['data']}\n"
-                # print("REQUEST:\n" + req_msg)  # For testing purposes
+                req_msg = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\nContent-Length:{(len(str(req['data'])))}\n\n{req['data']}\n"
+                print("REQUEST:\n" + req_msg)  # For testing purposes
             else:
                 print("""Can not recognize request type keyword
                 Please use either get or send""")
 
-           # print("REQUEST:\n" + req)  # For testing purposes
+            # print("REQUEST:\n" + req)  # For testing purposes
             req_msg = req_msg.encode("utf-8")
             conn.sendall(req_msg)  # Sends req
             response = conn.recv(1024)  # Receive response, read up to 1024 bytes
@@ -63,7 +68,7 @@ def send_request(req: dict):
             status_code = status.group(1)
             # If response status is 3xx
             if status_code.startswith('3'):
-                # Redirect to location in header. Recursive function
+                # Redirect to location in header. Loop function
                 new_location = re.search(header_loc_regex, response)
                 if new_location:
                     parsed_relocation = urlparse(new_location.group(1))
@@ -104,7 +109,6 @@ Post executes a HTTP POST request for a given URL with inline data or from file.
 Either [-d] or [-f] can be used but not both.
 """
 
-
 parser = argparse.ArgumentParser(description=help_msg, add_help=False)
 parser.add_argument("request", help=request_help_msg, choices=['post', 'get'])
 parser.add_argument("URL", help="URL for request")
@@ -127,8 +131,6 @@ else:
         print("both -f and -d if arguments can not exist together")
         exit(1)
 print("Arguments: ---->>>>> : " + str(arguments))  # For testing purposes
-
-
 
 # if parser.f:
 #     print("filename: {}".format(parser.f))
