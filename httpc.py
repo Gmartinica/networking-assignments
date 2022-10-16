@@ -3,6 +3,8 @@ import argparse
 import sys
 from urllib.parse import urlparse
 import re
+import os
+from datetime import date, datetime
 
 header_loc_regex = 'Location:(.*)\n'
 html_status_code = 'HTTP\/[\d.]+\s(\d{3})'
@@ -22,6 +24,7 @@ def parse_commands(args):
     # If headers in arguments, join them in string dividing by line breaks
     request['headers'] = '\n' + '\n'.join(args.h) if args.h != '' else ''
     request['verbose'] = args.v
+    request['outFile'] = '\n'.join(args.o) if args.o != '' else ''
     if args.d:
         print(args.d)
         request['data'] = '\n'.join(args.d) if args.d != '' else ''
@@ -46,7 +49,9 @@ def send_request(req: dict):
         conn.connect((req['host'], req['port']))
         # TODO: Have a count that maxes out at 10 redirects and then exits, where the response to the console is like too many redirects or something
         # TODO: Implement -o file to write response
-        while status_code.startswith('3'):
+        count = 0
+        while status_code.startswith('3') and count < 11:
+            ++count
             if req['type'].casefold() == "get".casefold():
                 req_msg = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\n\n"
                 # print("REQUEST:\n" + req_msg)  # For testing purposes
@@ -76,7 +81,33 @@ def send_request(req: dict):
 
         if not request['verbose']:
             response = response.split('\r\n\r\n')[1]  # Get just response body
-        sys.stdout.write(response)
+        if not request['outFile']:
+            sys.stdout.write(response)
+        else:
+            outFilename, outFile_extension = os.path.splitext(request['outFile'])
+
+            try:
+                outFile = open(request['outFile'], "a")  # append mode
+                outFile.write("-----------------------------\n")
+                outFile.write(response)
+                outFile.write("\n______________________________\n")
+                outFile.close()
+
+            except IOError:
+                now = datetime.now()
+
+                # dd-mm-YY_H.M.S
+                outFilename = now.strftime("%d-%m-%Y_%H.%M.%S.txt")
+                try:
+                    outFile = open(outFilename, "a")  # append mode
+                    outFile.write("-----------------------------\n")
+                    outFile.write(response)
+                    outFile.write("\n______________________________\n")
+                    outFile.close()
+                    print("Unable to write to specified file due to problem in name or extenstion , wrote the out put to  " + outFilename )
+                except IOError:
+                    print("Could not creat the output file")
+
     finally:
         conn.close()
 
@@ -117,6 +148,7 @@ parser.add_argument("-v", help="Return verbose response", action="store_true", d
 parser.add_argument("-h", help="Headers for request", nargs='*', default='')
 parser.add_argument("-d", "--d", help="inline data for post request", nargs='*', default='')
 parser.add_argument("-f", help="file for post request", nargs='*', default='')
+parser.add_argument("-o", help="print output to specific file", nargs='*', default='')
 arguments = parser.parse_args()
 
 if arguments.request.casefold() == "get".casefold():

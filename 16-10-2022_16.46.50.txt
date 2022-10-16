@@ -1,0 +1,27 @@
+-----------------------------
+HTTP/1.1 200 OK
+Date: Sun, 16 Oct 2022 20:46:50 GMT
+Content-Type: application/json
+Content-Length: 345
+Connection: keep-alive
+Server: gunicorn/19.9.0
+Access-Control-Allow-Origin: *
+Access-Control-Allow-Credentials: true
+
+{
+  "args": {}, 
+  "data": "{Assignment: 1}", 
+  "files": {}, 
+  "form": {}, 
+  "headers": {
+    "Content-Length": "15", 
+    "Content-Type": "application/json", 
+    "Host": "httpbin.org", 
+    "X-Amzn-Trace-Id": "Root=1-634c6dba-6574b44336e91ccb77365df0"
+  }, 
+  "json": null, 
+  "origin": "45.45.57.95", 
+  "url": "http://httpbin.org/post"
+}
+
+______________________________
