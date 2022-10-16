@@ -26,7 +26,6 @@ def parse_commands(args):
     request['verbose'] = args.v
     request['outFile'] = '\n'.join(args.o) if args.o != '' else ''
     if args.d:
-        print(args.d)
         request['data'] = '\n'.join(args.d) if args.d != '' else ''
     elif args.f:
         filepath = '\n' + '\n'.join(args.f)
