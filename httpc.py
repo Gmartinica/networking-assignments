@@ -49,17 +49,19 @@ def send_request(req: dict):
     try:
         conn.connect((req['host'], req['port']))
         count = 0
+        # While status code returns redirect
         while status_code.startswith('3'):
             count += 1
+            # Too many redirects
             if count == 10:
                 print(f"Too many redirects from {req['path']}")
                 break
+            # If get request
             if req['type'].casefold() == "get".casefold():
                 req_msg = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\n\n"
-                # print("REQUEST:\n" + req_msg)  # For testing purposes
+            # If post request, send content length and data
             elif req['type'].casefold() == "post".casefold():
                 req_msg = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\nContent-Length:{(len(str(req['data'])))}\n\n{req['data']}\n"
-                print("REQUEST:\n" + req_msg)  # For testing purposes
             else:
                 print("""Can not recognize request type keyword
                 Please use either get or send""")
@@ -85,6 +87,7 @@ def send_request(req: dict):
             response = response.split('\r\n\r\n')[1]  # Get just response body
         if not request['outFile']:
             sys.stdout.write(response)
+        # Write output to file
         else:
             outFilename, outFile_extension = os.path.splitext(request['outFile'])
 
@@ -164,7 +167,6 @@ else:
     if arguments.f != '' and arguments.d != '':
         print("both -f and -d if arguments can not exist together")
         exit(1)
-print("Arguments: ---->>>>> : " + str(arguments))  # For testing purposes
 
 request = parse_commands(arguments)
 send_request(request)
