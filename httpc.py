@@ -43,15 +43,17 @@ def parse_commands(args):
 
 def send_request(req: dict):
     """Sends either GET or POST req to the specified server"""
+    global req_msg, req_msg
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     status_code = '3'
     try:
         conn.connect((req['host'], req['port']))
-        # TODO: Have a count that maxes out at 10 redirects and then exits, where the response to the console is like too many redirects or something
-        # TODO: Implement -o file to write response
         count = 0
-        while status_code.startswith('3') and count < 11:
-            ++count
+        while status_code.startswith('3'):
+            count += 1
+            if count == 10:
+                print(f"Too many redirects from {req['path']}")
+                break
             if req['type'].casefold() == "get".casefold():
                 req_msg = f"{req['type']} {req['path']} HTTP/1.1\nHost: {req['host']}{req['headers']}\n\n"
                 # print("REQUEST:\n" + req_msg)  # For testing purposes
@@ -62,7 +64,7 @@ def send_request(req: dict):
                 print("""Can not recognize request type keyword
                 Please use either get or send""")
 
-            # print("REQUEST:\n" + req)  # For testing purposes
+
             req_msg = req_msg.encode("utf-8")
             conn.sendall(req_msg)  # Sends req
             response = conn.recv(1024)  # Receive response, read up to 1024 bytes
@@ -164,7 +166,5 @@ else:
         exit(1)
 print("Arguments: ---->>>>> : " + str(arguments))  # For testing purposes
 
-# if parser.f:
-#     print("filename: {}".format(parser.f))
 request = parse_commands(arguments)
 send_request(request)
