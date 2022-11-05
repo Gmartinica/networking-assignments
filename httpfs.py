@@ -1,4 +1,5 @@
 import socket
+
 import threading
 import argparse
 import time
@@ -25,8 +26,21 @@ def run_server(host, port, path):
 
 def handle_client(conn, addr):
     print('New client from', addr)
+    file = conn.recv(1024);
+    data = file.decode("utf-8")
+#    print("+++++")
+#    print(data)
+#    print("+++++")
+    method = data.split(' ')[0]
+    #http_header = data.split('\r\n\r\n')
+    #lines = http_header.split('\r\n')
+
     try:
-        # TODO CLIENT HANDEL
+        if method.casefold() == "get".casefold():
+            print("get")
+        if method.casefold() == "post".casefold():
+            print("post")
+        now = 1
 
         # Must send uint32 in big-endian
         conn.sendall(now.to_bytes(4, byteorder='big'))
