@@ -1,5 +1,5 @@
 import socket
-
+from datetime import datetime
 import threading
 import argparse
 import time
@@ -50,6 +50,36 @@ def status_phrase(code):
         return 'HTTP Version Not Supported'
 
 
+def find_weekday(day):
+    if day == 0:
+        return 'Mon'
+    if day == 1:
+        return 'Tue'
+    if day == 2:
+        return 'Wed'
+    if day == 3:
+        return 'Thu'
+    if day == 4:
+        return 'Fri'
+    if day == 5:
+        return 'Sat'
+    if day == 6:
+        return 'Sun'
+
+def write_file(path, body):
+    status = 201  # Default is file created
+    file = None
+    if os.path.isfile(path):
+        status = 200
+    try:
+        file = open(path, 'w')
+        file.write(body)
+    except IOError:
+        status = 500
+        print("Unable to create/write file.")
+    finally:
+        file.close()
+    return status
 def handle_client(conn, addr, path):
     print('New client from', addr)
     file = conn.recv(1024);
@@ -57,30 +87,35 @@ def handle_client(conn, addr, path):
     print("+++++")
     print(data)
     print("+++++")
-    method = data.split(' ')[0]
+    first_line = data.split(' ')[:2]
+    method = first_line[0]
+    request_path = first_line[1]
+    now = datetime.utcnow()
+    date = f" {now.strftime('%a')}, {now.strftime('%d')} {now.strftime('%b')} {now.strftime('%Y')} {now.strftime('%H%:%M:%S')} GMT"
+    print(date)
 
     #http_header = data.split('\r\n\r\n')
     #lines = http_header.split('\r\n')
-
+    #TODO: If get request file is empty, return 204 and content length is 0
     try:
         if method.casefold() == "get".casefold():
-            status =200
+            status = 200
             bar = data.split(' ')[1]
             wanted_file = path + bar + ".txt"
             f = open(wanted_file, "r")
             content = f.read()
-            response =f"HTTP/1.1 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(content)}\r\n{content}\r\n\r\n"
+            response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(content)}\r\n{content}\r\n\r\n"
+
+        if method.casefold() == "post".casefold():
+            body = data.split('\n\n')[1]
+            path = path + request_path
+            print('Path is: ', path)
+            status = write_file(path, body)
+            response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nDate:{date}\r\nConnection: close\r\n\r\n"
+        response = response.encode("utf-8")
         print("+++++")
         print(response)
         print("+++++")
-        if method.casefold() == "post".casefold():
-            print("post")
-            print('Path is: ', path)
-        now = 1
-
-        # Must send uint32 in big-endian
-        #conn.sendall(now.to_bytes(4, byteorder='big'))
-        response = response.encode("utf-8")
         conn.sendall(response)
     finally:
         conn.close()
@@ -104,9 +139,10 @@ Specifies the directory that the server will use to read/write requested
 files. 
 Default is the current directory when launching the application.
 """
-
+# TODO: Implement V option
 parser = argparse.ArgumentParser()
 parser.add_argument("--PORT", "-p", help=port_help, type=int, default=8080)
 parser.add_argument("--PATH", "-d", help=directory_help, type=dir_path, default=os.getcwd())
+parser.add_argument("-v", help="Prints debugging messages", action="store_true", default=False)
 args = parser.parse_args()
 run_server('', args.PORT, args.PATH)
