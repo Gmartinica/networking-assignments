@@ -47,6 +47,8 @@ def status_phrase(code):
         return 'Forbidden'
     if code == 404:
         return 'Not Found'
+    if code == 500:
+        return 'Internal Server Error'
     if code == 505:
         return 'HTTP Version Not Supported'
 
@@ -59,12 +61,20 @@ def write_file(path, body):
     try:
         file = open(path, 'w')
         file.write(body)
+        file.close()
     except IOError:
         status = 500
         print("Unable to create/write file.")
-    finally:
-        file.close()
     return status
+
+
+def is_valid_path(basedir, path):
+    global args
+    requested_path = os.path.realpath(basedir + path)
+    if args.v:
+        print("REQUEST PATH: " + basedir + path)
+        print("Real path: " + requested_path)
+    return basedir == os.path.commonpath((basedir, requested_path)) and os.path.isdir(requested_path)
 
 
 def handle_client(conn, addr, path):
@@ -88,20 +98,23 @@ def handle_client(conn, addr, path):
     #TODO: If get request file is empty, return 204 and content length is 0
     #TODO: Add security by avoiding ../../ paths from client
     try:
-        if method.casefold() == "get".casefold():
-            status = 200
-            bar = data.split(' ')[1]
-            wanted_file = path + bar + ".txt"
-            f = open(wanted_file, "r")
-            content = f.read()
-            response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(content)}\r\n{content}\r\n\r\n"
-
-        if method.casefold() == "post".casefold():
-            body = data.split('\n\n')[1]
-            path = path + request_path
-            if args.v:
-                print('Path is: ', path)
-            status = write_file(path, body)
+        if is_valid_path(path, request_path):
+            if method.casefold() == "get".casefold():
+                status = 200
+                bar = data.split(' ')[1]
+                wanted_file = path + bar + ".txt"
+                f = open(wanted_file, "r")
+                content = f.read()
+                response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(content)}\r\n{content}\r\n\r\n"
+            elif method.casefold() == "post".casefold():
+                body = data.split('\n\n')[1]
+                path = path + request_path
+                status = write_file(path, body)
+                response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nDate: {date}\r\nConnection: close\r\n\r\n"
+        else:
+            status = 403
+            if not os.path.isdir(os.path.realpath(path + request_path)):
+                status = 400
             response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nDate: {date}\r\nConnection: close\r\n\r\n"
         response = response.encode("utf-8")
         if args.v:
