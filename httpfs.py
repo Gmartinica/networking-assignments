@@ -6,17 +6,18 @@ import time
 import os
 
 
-def run_server(host, port, path):
+def run_server(host, port, path, debugging = False):
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listener.bind((host, port))
         listener.listen(5)
         print("**********************************")
-        print('Time server is listening at', port)
+        print('Server is listening at', port)
         print('Path is: ', path)
         print("**********************************")
-
+        if debugging:
+            print("Debugging is active")
         while True:
             conn, addr = listener.accept()
             threading.Thread(target=handle_client, args=(conn, addr, path)).start()
@@ -50,22 +51,6 @@ def status_phrase(code):
         return 'HTTP Version Not Supported'
 
 
-def find_weekday(day):
-    if day == 0:
-        return 'Mon'
-    if day == 1:
-        return 'Tue'
-    if day == 2:
-        return 'Wed'
-    if day == 3:
-        return 'Thu'
-    if day == 4:
-        return 'Fri'
-    if day == 5:
-        return 'Sat'
-    if day == 6:
-        return 'Sun'
-
 def write_file(path, body):
     status = 201  # Default is file created
     file = None
@@ -80,23 +65,28 @@ def write_file(path, body):
     finally:
         file.close()
     return status
+
+
 def handle_client(conn, addr, path):
+    global args
     print('New client from', addr)
-    file = conn.recv(1024);
+    file = conn.recv(1024)
     data = file.decode("utf-8")
-    print("+++++")
-    print(data)
-    print("+++++")
     first_line = data.split(' ')[:2]
     method = first_line[0]
     request_path = first_line[1]
     now = datetime.utcnow()
-    date = f" {now.strftime('%a')}, {now.strftime('%d')} {now.strftime('%b')} {now.strftime('%Y')} {now.strftime('%H%:%M:%S')} GMT"
-    print(date)
+    date = f"{now.strftime('%a %d %b %Y %H%:%M:%S')} GMT"
+    if args.v:
+        print(f"Date is {date}")
+        print("+++++ Request is +++++")
+        print(data)
+        print("+++++")
 
     #http_header = data.split('\r\n\r\n')
     #lines = http_header.split('\r\n')
     #TODO: If get request file is empty, return 204 and content length is 0
+    #TODO: Add security by avoiding ../../ paths from client
     try:
         if method.casefold() == "get".casefold():
             status = 200
@@ -109,13 +99,15 @@ def handle_client(conn, addr, path):
         if method.casefold() == "post".casefold():
             body = data.split('\n\n')[1]
             path = path + request_path
-            print('Path is: ', path)
+            if args.v:
+                print('Path is: ', path)
             status = write_file(path, body)
-            response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nDate:{date}\r\nConnection: close\r\n\r\n"
+            response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nDate: {date}\r\nConnection: close\r\n\r\n"
         response = response.encode("utf-8")
-        print("+++++")
-        print(response)
-        print("+++++")
+        if args.v:
+            print(f"+++++ Response sent to {addr} +++++")
+            print(response)
+            print("+++++")
         conn.sendall(response)
     finally:
         conn.close()
@@ -139,10 +131,9 @@ Specifies the directory that the server will use to read/write requested
 files. 
 Default is the current directory when launching the application.
 """
-# TODO: Implement V option
 parser = argparse.ArgumentParser()
 parser.add_argument("--PORT", "-p", help=port_help, type=int, default=8080)
 parser.add_argument("--PATH", "-d", help=directory_help, type=dir_path, default=os.getcwd())
 parser.add_argument("-v", help="Prints debugging messages", action="store_true", default=False)
 args = parser.parse_args()
-run_server('', args.PORT, args.PATH)
+run_server('', args.PORT, args.PATH, args.v)
