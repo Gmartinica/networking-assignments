@@ -5,7 +5,7 @@ import argparse
 import time
 from time import gmtime, strftime
 import os
-
+from os import walk
 
 def run_server(host, port, path, debugging = False):
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -103,10 +103,25 @@ def handle_client(conn, addr, path):
             if method.casefold() == "get".casefold():
                 status = 200
                 bar = data.split(' ')[1]
-                wanted_file = path + bar + ".txt"
-                f = open(wanted_file, "r")
-                content = f.read()
-                response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(content)}\r\n{content}\r\n\r\n"
+                if not bar:
+                    wanted_file = path + bar + ".txt"
+                    f = open(wanted_file, "r")
+                    content = f.read()
+                    response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(content)}\r\n{content}\r\n\r\n"
+                else:
+                    f = []
+                    wanted_files = path
+
+                    for (dirpath, dirnames, filenames) in walk(wanted_files):
+                        f.extend(filenames)
+                        break
+
+                    content = f
+                    response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(str(content))}\r\n{content}\r\n\r\n"
+                    print("(((((((((((((((")
+                    print(len(str(content)))
+                    print("(((((((((((((((")
+
             elif method.casefold() == "post".casefold():
                 body = data.split('\n\n')[1]
                 path = path + request_path
