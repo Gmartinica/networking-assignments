@@ -3,6 +3,7 @@ from datetime import datetime
 import threading
 import argparse
 import time
+from time import gmtime, strftime
 import os
 
 
@@ -86,7 +87,7 @@ def handle_client(conn, addr, path):
     method = first_line[0]
     request_path = first_line[1]
     now = datetime.utcnow()
-    date = f"{now.strftime('%a %d %b %Y %H%:%M:%S')} GMT"
+    date = f"{now.strftime('%a %d %b %Y %H:%M:%S')} GMT"
     if args.v:
         print(f"Date is {date}")
         print("+++++ Request is +++++")
