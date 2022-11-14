@@ -7,6 +7,7 @@ from time import gmtime, strftime
 import os
 from os import walk
 
+
 def run_server(host, port, path, debugging = False):
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
@@ -75,7 +76,8 @@ def is_valid_path(basedir, path):
     if args.v:
         print("REQUEST PATH: " + basedir + path)
         print("Real path: " + requested_path)
-    return basedir == os.path.commonpath((basedir, requested_path)) and os.path.isdir(requested_path)
+    print("====>>> " + str(os.path.isfile(requested_path)))
+    return basedir == os.path.commonpath((basedir, requested_path)) and (os.path.isdir(requested_path) or os.path.isfile(requested_path +".txt"))
 
 
 def handle_client(conn, addr, path):
@@ -98,12 +100,17 @@ def handle_client(conn, addr, path):
     #lines = http_header.split('\r\n')
     #TODO: If get request file is empty, return 204 and content length is 0
     #TODO: Add security by avoiding ../../ paths from client
+    #if not dir or a file send bad request as respond
     try:
+        print("____________>>>>>>>>>>>>>>" + str(is_valid_path(path, request_path)))
         if is_valid_path(path, request_path):
+            print("{{{{{{{{{}}}}}}}}}}}}}}}}}}}}}")
+
             if method.casefold() == "get".casefold():
                 status = 200
                 bar = data.split(' ')[1]
-                if not bar:
+
+                if bar != "/":
                     wanted_file = path + bar + ".txt"
                     f = open(wanted_file, "r")
                     content = f.read()
@@ -118,9 +125,6 @@ def handle_client(conn, addr, path):
 
                     content = f
                     response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(str(content))}\r\n{content}\r\n\r\n"
-                    print("(((((((((((((((")
-                    print(len(str(content)))
-                    print("(((((((((((((((")
 
             elif method.casefold() == "post".casefold():
                 body = data.split('\n\n')[1]
