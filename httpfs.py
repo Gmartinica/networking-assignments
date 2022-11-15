@@ -6,9 +6,10 @@ import time
 from time import gmtime, strftime
 import os
 from os import walk
+from filelock import Timeout, FileLock
 
 
-def run_server(host, port, path, debugging = False):
+def run_server(host, port, path, debugging=False):
     listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -28,7 +29,6 @@ def run_server(host, port, path, debugging = False):
 
 
 def status_phrase(code):
-
     if code == 200:
         return 'OK'
     if code == 201:
@@ -56,28 +56,38 @@ def status_phrase(code):
 
 
 def write_file(path, body):
+    global args
+    path = path + ".txt"
     status = 201  # Default is file created
-    file = None
     if os.path.isfile(path):
         status = 200
     try:
+        if path == args.PATH:
+            raise FileNotFoundError
         file = open(path, 'w')
         file.write(body)
         file.close()
+    except FileNotFoundError:
+        status = 404
+        print("File was not found")
     except IOError:
         status = 500
         print("Unable to create/write file.")
     return status
 
 
-def is_valid_path(basedir, path):
+def is_valid_path(basedir, path, request_type):
     global args
     requested_path = os.path.realpath(basedir + path)
     if args.v:
         print("REQUEST PATH: " + basedir + path)
         print("Real path: " + requested_path)
-    print("====>>> " + str(os.path.isfile(requested_path)))
-    return basedir == os.path.commonpath((basedir, requested_path)) and (os.path.isdir(requested_path) or os.path.isfile(requested_path +".txt"))
+    print("Is path file====>>> " + str(os.path.isfile(requested_path)))
+    valid = True
+    if request_type == "get":
+        if not (os.path.isfile(requested_path + ".txt") or os.path.isdir(requested_path)):
+            valid = False
+    return basedir == os.path.commonpath((basedir, requested_path)) and valid
 
 
 def handle_client(conn, addr, path):
@@ -96,14 +106,10 @@ def handle_client(conn, addr, path):
         print(data)
         print("+++++")
 
-    #http_header = data.split('\r\n\r\n')
-    #lines = http_header.split('\r\n')
-    #TODO: If get request file is empty, return 204 and content length is 0
-    #TODO: Add security by avoiding ../../ paths from client
-    #if not dir or a file send bad request as respond
     try:
-        print("____________>>>>>>>>>>>>>>" + str(is_valid_path(path, request_path)))
-        if is_valid_path(path, request_path):
+        if args.v:
+            print("____________>>>>>>>>>>>>>>" + str(is_valid_path(path, request_path, method)))
+        if is_valid_path(path, request_path, method):
             print("{{{{{{{{{}}}}}}}}}}}}}}}}}}}}}")
 
             if method.casefold() == "get".casefold():
@@ -157,7 +163,6 @@ port_help = """
 Specifies the port number that the server will listen and serve at.
 Default is 8080.
 """
-
 
 directory_help = """
 Specifies the directory that the server will use to read/write requested
