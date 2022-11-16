@@ -110,21 +110,15 @@ def handle_client(conn, addr, path):
                 status = 200
                 bar = data.split(' ')[1]
 
-                if bar != "/":
+                if os.path.isfile(path + bar  +".txt"):
                     wanted_file = path + bar + ".txt"
                     f = open(wanted_file, "r")
                     content = f.read()
-                    response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(content)}\r\n{content}\r\n\r\n"
+                    response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(content)}\r\n\n{content}\r\n\r\n"
                 else:
-                    f = []
-                    wanted_files = path
 
-                    for (dirpath, dirnames, filenames) in walk(wanted_files):
-                        f.extend(filenames)
-                        break
-
-                    content = f
-                    response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(str(content))}\r\n{content}\r\n\r\n"
+                    content = os.listdir(path+bar)
+                    response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(str(content))}\r\n\n{content}\r\n\r\n"
 
             elif method.casefold() == "post".casefold():
                 body = data.split('\n\n')[1]
