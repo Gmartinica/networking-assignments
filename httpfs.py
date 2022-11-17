@@ -83,6 +83,7 @@ def is_valid_path(basedir, path, request_type):
         print("REQUEST PATH: " + basedir + path)
         print("Real path: " + requested_path)
     print("Is path file====>>> " + str(os.path.isfile(requested_path)))
+    print("Is dir file====>>> " + str(os.path.isdir(requested_path)))
     valid = True
     if request_type == "get":
         if not (os.path.isfile(requested_path + ".txt") or os.path.isdir(requested_path)):
@@ -116,15 +117,20 @@ def handle_client(conn, addr, path):
                 status = 200
                 bar = data.split(' ')[1]
 
-                if os.path.isfile(path + bar  +".txt"):
+                if os.path.isfile(path + bar + ".txt"):
                     wanted_file = path + bar + ".txt"
                     f = open(wanted_file, "r")
                     content = f.read()
                     response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(content)}\r\n\n{content}\r\n\r\n"
-                else:
-
+                elif os.path.isdir(path + bar):
                     content = os.listdir(path+bar)
+                    if args.v:
+                        print("Contents of directory are:")
+                        print(content)
                     response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nConnection: close\r\nContent-Length: {len(str(content))}\r\n\n{content}\r\n\r\n"
+                else:
+                    status = 400
+                    response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nDate: {date}\r\nConnection: close\r\n\r\n"
 
             elif method.casefold() == "post".casefold():
                 body = data.split('\n\n')[1]
