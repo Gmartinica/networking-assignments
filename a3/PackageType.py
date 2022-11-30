@@ -12,7 +12,8 @@ class PacketType(Enum):
 # Test for class enum
 def main():
     p = PacketType.DATA
-    print(p)
+    x = 1
+    print(PacketType(x).name)
     print(p.value)
     print(p.name)
 
