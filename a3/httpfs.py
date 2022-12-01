@@ -3,14 +3,13 @@ from datetime import datetime
 import threading
 import argparse
 import os
-
+from packet import Packet
 
 def run_server(host, port, path, debugging=False):
-    listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    listener = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
-        listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        #listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         listener.bind((host, port))
-        listener.listen(5)
         print("**********************************")
         print('Server is listening at', port)
         print('Path is: ', path)
@@ -18,8 +17,8 @@ def run_server(host, port, path, debugging=False):
         if debugging:
             print("Debugging is active")
         while True:
-            conn, addr = listener.accept()
-            threading.Thread(target=handle_client, args=(conn, addr, path)).start()
+            data, sender = listener.recvfrom(1024)
+            handle_client(listener, sender, data, path)
     finally:
         listener.close()
 
@@ -87,11 +86,11 @@ def is_valid_path(basedir, path, request_type):
     return basedir == os.path.commonpath((basedir, requested_path)) and valid
 
 
-def handle_client(conn, addr, path):
+def handle_client(conn, sender, data, path):
     global args
-    print('New client from', addr)
-    file = conn.recv(1024)
-    data = file.decode("utf-8")
+    print('New client from', sender)
+    p = Packet.from_bytes(data)
+    data = p.payload.decode()
     first_line = data.split(' ')[:2]
     method = first_line[0]
     request_path = first_line[1]
@@ -139,13 +138,14 @@ def handle_client(conn, addr, path):
                 status = 400
             response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nDate: {date}\r\nConnection: close\r\n\r\n"
         response = response.encode("utf-8")
+        p.payload = response
         if args.v:
-            print(f"+++++ Response sent to {addr} +++++")
+            print(f"+++++ Response sent to {sender} +++++")
             print(response)
             print("+++++")
-        conn.sendall(response)
-    finally:
-        conn.close()
+        conn.sendto(p.to_bytes(), sender)
+    except Exception as e:
+        print("Error: ", e)
 
 
 def dir_path(string):
