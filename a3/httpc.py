@@ -8,6 +8,7 @@ from datetime import datetime
 from packet import Packet
 import ipaddress
 
+# server address: http://127.0.0.1:8080/
 router_addr = '127.0.0.1'
 router_port = 3000
 def parse_commands(args):

@@ -77,8 +77,8 @@ def is_valid_path(basedir, path, request_type):
     if args.v:
         print("REQUEST PATH: " + basedir + path)
         print("Real path: " + requested_path)
-    print("Is path file====>>> " + str(os.path.isfile(requested_path)))
-    print("Is dir file====>>> " + str(os.path.isdir(requested_path)))
+        print("Is path file====>>> " + str(os.path.isfile(requested_path)))
+        print("Is dir file====>>> " + str(os.path.isdir(requested_path)))
     valid = True
     if request_type == "get":
         if not (os.path.isfile(requested_path + ".txt") or os.path.isdir(requested_path)):
