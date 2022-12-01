@@ -1,8 +1,10 @@
 import argparse
 import socket
-
+import math
+import sys
 from packet import Packet
 
+PAYLOAD_SIZE = 1013
 
 def run_server(port):
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -17,12 +19,26 @@ def run_server(port):
         conn.close()
 
 
+def create_packets(msg, num_of_packets, packets):
+    for i in range(0, num_of_packets):
+        if i == num_of_packets - 1:
+            # last chunck of the packets
+            packets.append(msg[i * PAYLOAD_SIZE:])
+        else:
+            packets.append(msg[i * PAYLOAD_SIZE:(i + 1) * PAYLOAD_SIZE])
+
+            
 def handle_client(conn, data, sender):
     try:
         p = Packet.from_bytes(data)
         print("Router: ", sender)
         print("Packet: ", p)
         print("Payload: ", p.payload.decode("utf-8"))
+
+        # TODO msg = creat_msg()
+        num_of_packets = math.ceil(len(msg) / PAYLOAD_SIZE)
+        packets = list()
+        create_packets(msg, num_of_packets, packets)
 
         # How to send a reply.
         # The peer address of the packet p is the address of the client already.
@@ -31,6 +47,11 @@ def handle_client(conn, data, sender):
 
     except Exception as e:
         print("Error: ", e)
+
+
+
+
+
 
 
 # Usage python udp_server.py [--port port-number]
