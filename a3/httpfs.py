@@ -51,31 +51,57 @@ def run_server(port):
     finally:
         conn.close()
 
+def sentAll(li):
+  rslt = True
+  for i in range(0, len(li)):
+    if li[i].isRecived == False:
+      rslt = False
+  return rslt
 
 def handle_client(conn, data, sender):
     try:
         data = [Packet.from_bytes(data)]
         msg = PacketsConverter.create_msg(data)
         print(msg)
-        # if its part of handshake so we received sync msg
+
         res = HttpResponse.create_response(msg, args.PATH)
         print(res)
-        num_of_packets = math.ceil(len(res) / PacketsConverter.PAYLOAD_SIZE)
-        packets = list()
-        PacketsConverter.create_packets(res, num_of_packets, packets, data[0].peer_ip_addr, data[0].peer_port)
-        print(packets)
-        for p in packets:
-            conn.sendto(p.to_bytes(), sender)
-        # # TODO msg = creat_msg(type(get/post), )
-        # num_of_packets = math.ceil(len(msg) / PAYLOAD_SIZE)
-        # packets = list()
-        # PacketsConverter.create_packets(msg, num_of_packets, packets, p.peer_ip_addr, p.peer_port)
-        # 1         1
 
-        # How to send a reply.
-        # The peer address of the packet p is the address of the client already.
-        # We will send the same payload of p. Thus we can re-use either `data` or `p`.
-        # conn.sendto(p.to_bytes(), sender)
+        num_of_packets = math.ceil(len(res) / PacketsConverter.PAYLOAD_SIZE)
+        res_packets = list()
+        PacketsConverter.create_packets(res, num_of_packets, res_packets, data[0].peer_ip_addr, data[0].peer_port)
+        print(res_packets)
+
+        #track if packets ack is is received or not
+        packets_tracker = list()
+        for i in range(0, len(res_packets)):
+            packets_tracker.append(False)
+
+        while not(sentAll(protocol_list)):
+            for p in res_packets:
+                conn.sendto(p.to_bytes(), sender)
+                '''
+                t1 = Timer(3, resend, ['Timeout:'])
+                t1.start()  # run is called
+                
+                t2 = Timer(3, resend, ['Timeout:'])
+                t2.start()  # run is called
+                
+                if we recive ack  
+                t1.cancel()
+                '''
+
+
+            # # TODO msg = creat_msg(type(get/post), )
+            # num_of_packets = math.ceil(len(msg) / PAYLOAD_SIZE)
+            # packets = list()
+            # PacketsConverter.create_packets(msg, num_of_packets, packets, p.peer_ip_addr, p.peer_port)
+            # 1         1
+
+            # How to send a reply.
+            # The peer address of the packet p is the address of the client already.
+            # We will send the same payload of p. Thus we can re-use either `data` or `p`.
+            # conn.sendto(p.to_bytes(), sender)
 
     except Exception as e:
         print("Error: ", e)
