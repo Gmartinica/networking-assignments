@@ -46,7 +46,7 @@ parser.add_argument("--PORT", "-p", help=HttpResponse.port_help, type=int, defau
 parser.add_argument("--PATH", "-d", help=HttpResponse.directory_help, type=HttpResponse.dir_path, default=os.getcwd())
 parser.add_argument("-v", help="Prints debugging messages", action="store_true", default=False)
 args = parser.parse_args()
-test_msg = "GET / HTTP/1.0\nHost: 127.0.0.1\n\n"
+test_msg = 'POST /lol HTTP/1.0\nHost: 127.0.0.1\nContent-Length:6\n\nLolazo\n'
 res = HttpResponse.create_response(test_msg, args.PATH)
 HttpRequest.read_response(res.decode("utf-8"))
 run_server(args.PORT)

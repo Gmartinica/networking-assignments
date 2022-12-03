@@ -22,9 +22,12 @@ def create_request(req: dict):
 def read_response(res: str, verbose=False, out_file=None):
     """Given HTTP response, output to terminal or to file"""
     if not verbose:
-        response = res.split('\r\n\n')[1]  # Get just response body
+        try:
+            response = res.split('\r\n\n')[1]  # Get just response body
+        except IndexError:
+            response = "No response body"
     if not out_file:
-        sys.stdout.write(res)
+        print(response)
     # Write output to file
     else:
         try:
