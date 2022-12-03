@@ -27,5 +27,5 @@ def create_packets(msg, num_of_packets, packets, ip_addr, port):
 def create_msg(packets):
     msg = ""
     for i in range(0, len(packets)):
-        msg = msg + packets[i].payload.dencode("utf-8")
+        msg = msg + packets[i].payload.decode("utf-8")
     return msg
