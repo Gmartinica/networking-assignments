@@ -78,6 +78,7 @@ def three_way_handshake(router_addr, router_port, server_addr, server_port):
                      payload="ack")
         conn.sendto(ack.to_bytes(), (router_addr, router_port))
         print('Send "{}" to router'.format("ack"))
+        return True
         
         
         print(packets_received)
@@ -88,7 +89,7 @@ def three_way_handshake(router_addr, router_port, server_addr, server_port):
 
     except socket.timeout:
         print('No response after {}s'.format(timeout))
-        return false
+        return False
     finally:
         conn.close()
     
@@ -114,6 +115,17 @@ def run_client(router_addr, router_port, server_addr, server_port, request):
         while len(packets_received) < 10:
                 response, sender = conn.recvfrom(1024)
                 p = Packet.from_bytes(response)
+
+                '''
+                # sending back the ack
+                p_ack = p
+                p_ack.packet_type = 1
+                p_ack.peer_port = server_port
+                p_ack.peer_ip_addr = peer_ip
+                conn.sendto(p_ack.to_bytes(), (router_addr, router_port))
+                '''
+                
+                #append to our receiveer list
                 packets_received.append(p)
                 if p.packet_type == 5:
                     break

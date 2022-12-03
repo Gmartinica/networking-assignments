@@ -8,7 +8,7 @@ import HttpRequest
 import math
 
 import time
-from threading import Timer
+from threading import Ti
 
 
 #Todo not tested yet only the overview
@@ -29,8 +29,8 @@ def three_way_handshake_server(conn, data, sender):
             print('Send "{}" to router'.format("synAck"))
         else:
             return False
-
-        if data[1].packet_type == 1:   # received ack
+       #### data, sender = conn.recvfrom(1024)
+        if data[0].packet_type == 1:   # received ack
             return True
 
 
