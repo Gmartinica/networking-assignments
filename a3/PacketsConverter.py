@@ -18,8 +18,8 @@ def create_packets(msg, num_of_packets, packets, ip_addr, port):
         else:
             p = Packet(packet_type=0,
                        seq_num=i+1,
-                       peer_ip_addr=p.peer_ip_addr,
-                       peer_port=p.peer_port,
+                       peer_ip_addr=ip_addr,
+                       peer_port=port,
                        payload=msg[i * PAYLOAD_SIZE:(i + 1) * PAYLOAD_SIZE].encode("utf-8"))
             packets.append(p)
 
