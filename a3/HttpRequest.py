@@ -21,9 +21,8 @@ def create_request(req: dict):
 
 def read_response(res: str, verbose=False, out_file=None):
     """Given HTTP response, output to terminal or to file"""
-    response = None
     if not verbose:
-        response = res.split('\r\n\r\n')[1]  # Get just response body
+        response = res.split('\r\n\n')[1]  # Get just response body
     if not out_file:
         sys.stdout.write(res)
     # Write output to file
