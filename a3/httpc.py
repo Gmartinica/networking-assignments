@@ -5,8 +5,10 @@ from urllib.parse import urlparse
 import HttpRequest
 from packet import Packet
 import math
-PAYLOAD_SIZE = 1013
 import PacketsConverter
+PAYLOAD_SIZE = 1013
+
+
 
 def parse_commands(args):
     """Given a dict of command line arguments, return a dict with the HTTP req elements"""
@@ -41,6 +43,55 @@ def parse_commands(args):
             print("Could not read from file")
             exit(1)
     return request
+
+#Todo not tested yet only the overview
+# return True if the hanshake is corectly don
+def three_way_handshake(router_addr, router_port, server_addr, server_port):
+    peer_ip = ipaddress.ip_address(socket.gethostbyname(server_addr))
+    conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    timeout = 5
+    try:
+        syn = Packet(packet_type=3,
+                     seq_num=1,
+                     peer_ip_addr=peer_ip,
+                     peer_port=server_port,
+                     payload="syn")
+        conn.sendto(syn.to_bytes(), (router_addr, router_port))
+        print('Send "{}" to router'.format("syn"))
+
+
+        # Try to receive a response within timeout
+        conn.settimeout(timeout)
+        print('Waiting for a response')
+        packets_received = []
+        while True:
+                response, sender = conn.recvfrom(1024)
+                p = Packet.from_bytes(response)
+                packets_received.append(p)
+                if p.packet_type == 4:   # we recived synAck from server
+                    break
+                
+        ack = Packet(packet_type=1,
+                     seq_num=2,
+                     peer_ip_addr=peer_ip,
+                     peer_port=server_port,
+                     payload="ack")
+        conn.sendto(ack.to_bytes(), (router_addr, router_port))
+        print('Send "{}" to router'.format("ack"))
+        
+        
+        print(packets_received)
+        print(PacketsConverter.create_msg(packets_received))
+        # print('Router: ', sender)
+        # print('Packet: ', p)
+        # print('Payload: ' + p.payload.decode("utf-8"))
+
+    except socket.timeout:
+        print('No response after {}s'.format(timeout))
+        return false
+    finally:
+        conn.close()
+    
 
 def run_client(router_addr, router_port, server_addr, server_port, request):
     peer_ip = ipaddress.ip_address(socket.gethostbyname(server_addr))
@@ -108,4 +159,5 @@ else:
         exit(1)
 http_request = HttpRequest.create_request(request)
 print(http_request)
+#TODO if hadshake is true then  run client
 run_client(args.routerhost, args.routerport, args.serverhost, args.serverport, http_request)

@@ -6,6 +6,38 @@ from packet import Packet
 import HttpResponse
 import HttpRequest
 import math
+
+import time
+from threading import Timer
+
+
+#Todo not tested yet only the overview
+# Probably need to change to sth similar to client and we check 1 by 1
+def three_way_handshake_server(conn, data, sender):
+    try:
+        data = [Packet.from_bytes(data)]
+        msg = PacketsConverter.create_msg(data)
+        print(msg)
+
+        if data[0].packet_type == 3:    # received syn  so we will send synAck
+            syn_ack = Packet(packet_type=4,
+                             seq_num=1,
+                             peer_ip_addr=peer_ip,
+                             peer_port=server_port,
+                             payload="synAck")
+            conn.sendto(syn_ack.to_bytes(), (router_addr, router_port))
+            print('Send "{}" to router'.format("synAck"))
+        else:
+            return False
+
+        if data[1].packet_type == 1:   # received ack
+            return True
+
+
+    except Exception as e:
+        print("Error: ", e)
+        return False
+
 def run_server(port):
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
@@ -13,6 +45,7 @@ def run_server(port):
         print('Echo server is listening at', port)
         while True:
             data, sender = conn.recvfrom(1024)
+            # TODO if hadshake is true then  handel client
             handle_client(conn, data, sender)
 
     finally:
@@ -24,6 +57,7 @@ def handle_client(conn, data, sender):
         data = [Packet.from_bytes(data)]
         msg = PacketsConverter.create_msg(data)
         print(msg)
+        # if its part of handshake so we received sync msg
         res = HttpResponse.create_response(msg, args.PATH)
         print(res)
         num_of_packets = math.ceil(len(res) / PacketsConverter.PAYLOAD_SIZE)
