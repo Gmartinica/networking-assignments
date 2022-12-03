@@ -1,109 +1,51 @@
-import socket
-import argparse
 import sys
-from urllib.parse import urlparse
-import re
-import os
 from datetime import datetime
-from packet import Packet
-import ipaddress
 
-# server address: http://127.0.0.1:8080/
-router_addr = '127.0.0.1'
-router_port = 3000
-def parse_commands(args):
-    """Given a dict of command line arguments, return a dict with the HTTP req elements"""
-    request = {}
-    parsed_url = urlparse(args.URL)
-    print(parsed_url)
-    if parsed_url.scheme == 'http':
-        request['host'] = ipaddress.ip_address(parsed_url.hostname)
+
+def create_request(req: dict):
+    """Returns either GET or POST request based on dict input"""
+    # If GET request
+    req_msg = ""
+    if req['type'].casefold() == "get".casefold():
+        req_msg = f"{req['type']} {req['path']} HTTP/1.0\nHost: {req['host']}{req['headers']}\n\n"
+    # If post request, send content length and data
+    elif req['type'].casefold() == "post".casefold():
+        req_msg = f"{req['type']} {req['path']} HTTP/1.0\nHost: {req['host']}{req['headers']}\nContent-Length:{(len(str(req['data'])))}\n\n{req['data']}\n"
     else:
-        request['host'] = parsed_url.scheme
-    # Default web port is 80
-    request['port'] = 80 if parsed_url.port is None else parsed_url.port
-    request['path'] = parsed_url.path
-    print(request['path'])
-    if parsed_url.query != '':
-        request['path'] += '?' + parsed_url.query
-    request['type'] = args.request.upper()
-    # If headers in arguments, join them in string dividing by line breaks
-    request['headers'] = '\n' + '\n'.join(args.h) if args.h != '' else ''
-    request['verbose'] = args.v
-    request['outFile'] = '\n'.join(args.o) if args.o != '' else ''
-    if args.d:
-        request['data'] = '\n'.join(args.d) if args.d != '' else ''
-    elif args.f:
-        filepath = '\n' + '\n'.join(args.f)
-        filepath2 = filepath.split('\n')[1]
+        print("""Can not recognize request type keyword
+        Please use either get or send""")
+
+    req_msg = req_msg.encode("utf-8")
+    return req_msg
+
+
+def read_response(res: str, verbose=False, out_file=None):
+    """Given HTTP response, output to terminal or to file"""
+    response = None
+    if not verbose:
+        response = res.split('\r\n\r\n')[1]  # Get just response body
+    if not out_file:
+        sys.stdout.write(res)
+    # Write output to file
+    else:
         try:
-            file = open(filepath2, "r")
-            request['data'] = file.read()
-            file.close()
+            out = open(out_file, "a")  # append mode
+            out.write("-----------------------------\n")
+            out.write(response)
+            out.write("\n______________________________\n")
+            out.close()
+
         except IOError:
-            print("Could not read from file")
-
-    return request
-
-
-def send_request(req: dict):
-    """Sends either GET or POST req to the specified server"""
-    print(req)
-    conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # If get request
-        if req['type'].casefold() == "get".casefold():
-            req_msg = f"{req['type']} {req['path']} HTTP/1.0\nHost: {req['host']}{req['headers']}\n\n"
-        # If post request, send content length and data
-        elif req['type'].casefold() == "post".casefold():
-            req_msg = f"{req['type']} {req['path']} HTTP/1.0\nHost: {req['host']}{req['headers']}\nContent-Length:{(len(str(req['data'])))}\n\n{req['data']}\n"
-        else:
-            print("""Can not recognize request type keyword
-            Please use either get or send""")
-
-        req_msg = req_msg.encode("utf-8")
-        p = Packet(0, 1, request['host'], request['port'], req_msg)
-        conn.sendto(p.to_bytes(), (router_addr, router_port))
-        print(p)
-        print('Send "{}" to router'.format(req_msg))
-        response = conn.recv(1024)  # Receive response, read up to 1024 bytes
-        p = Packet.from_bytes(response)
-        print('Packet: ', p)
-        print('Payload: ' + p.payload.decode("utf-8"))
-
-        if not request['verbose']:
-            response = p.payload.decode().split('\r\n\r\n')[1]  # Get just response body
-        if not request['outFile']:
-            sys.stdout.write(p.payload.decode())
-        # Write output to file
-        else:
-            outFilename, outFile_extension = os.path.splitext(request['outFile'])
-
+            # dd-mm-YY_H.M.S
+            outFilename = datetime.now().strftime("%d-%m-%Y_%H.%M.%S.txt")
             try:
-                outFile = open(request['outFile'], "a")  # append mode
-                outFile.write("-----------------------------\n")
-                outFile.write(response)
-                outFile.write("\n______________________________\n")
-                outFile.close()
-
+                out = open(outFilename, "a")  # append mode
+                out.write("-----------------------------\n")
+                out.write(response)
+                out.write("\n______________________________\n")
+                out.close()
             except IOError:
-                now = datetime.now()
-
-                # dd-mm-YY_H.M.S
-                outFilename = now.strftime("%d-%m-%Y_%H.%M.%S.txt")
-                try:
-                    outFile = open(outFilename, "a")  # append mode
-                    outFile.write("-----------------------------\n")
-                    outFile.write(response)
-                    outFile.write("\n______________________________\n")
-                    outFile.close()
-                    print(
-                        "Unable to write to specified file due to problem in name or extenstion , wrote the out put to  " + outFilename)
-                except IOError:
-                    print("Could not creat the output file")
-
-    finally:
-        conn.close()
+                print("Could not create the output file")
 
 
 help_msg = """
@@ -133,29 +75,3 @@ Post executes a HTTP POST request for a given URL with inline data or from file.
 -f file Associates the content of a file to the body HTTP POST request.
 Either [-d] or [-f] can be used but not both.
 """
-
-parser = argparse.ArgumentParser(description=help_msg, add_help=False)
-parser.add_argument("request", help=request_help_msg, choices=['post', 'get'])
-parser.add_argument("URL", help="URL for request")
-parser.add_argument('-H', '--help', action='help', help="Show help message")
-parser.add_argument("-v", help="Return verbose response", action="store_true", default=False)
-parser.add_argument("-h", help="Headers for request", nargs='*', default='')
-parser.add_argument("-d", "--d", help="inline data for post request", nargs='*', default='')
-parser.add_argument("-f", help="file for post request", nargs='*', default='')
-parser.add_argument("-o", help="print output to specific file", nargs='*', default='')
-arguments = parser.parse_args()
-
-if arguments.request.casefold() == "get".casefold():
-
-    if arguments.f or arguments.d:
-        print("-d and -f arguments are only for Post request")
-        exit(1)
-else:
-    if arguments.f == '' and arguments.d == '':
-        print("Pass and argument for Post request, Have a look at -v and -f arguments")
-    if arguments.f != '' and arguments.d != '':
-        print("both -f and -d if arguments can not exist together")
-        exit(1)
-
-request = parse_commands(arguments)
-send_request(request)

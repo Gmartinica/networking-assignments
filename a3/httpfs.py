@@ -54,7 +54,7 @@ def handle_client(conn, data, sender):
 
 
 
-# Usage python udp_server.py [--port port-number]
+# Usage python httpfs.py [--port port-number]
 parser = argparse.ArgumentParser()
 parser.add_argument("--port", help="echo server port", type=int, default=8007)
 args = parser.parse_args()

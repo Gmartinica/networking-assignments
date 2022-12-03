@@ -2,7 +2,7 @@ import argparse
 import ipaddress
 import socket
 from urllib.parse import urlparse
-
+import HttpRequest
 from packet import Packet
 
 
@@ -12,7 +12,7 @@ def parse_commands(args):
     parsed_url = urlparse(args.URL)
     print(parsed_url)
     if parsed_url.scheme == 'http':
-        request['host'] = ipaddress.ip_address(parsed_url.hostname)
+        request['host'] = parsed_url.hostname
     else:
         request['host'] = parsed_url.scheme
     # Default web port is 80
@@ -38,7 +38,6 @@ def parse_commands(args):
         except IOError:
             print("Could not read from file")
             exit(1)
-
     return request
 
 def run_client(router_addr, router_port, server_addr, server_port):
@@ -69,13 +68,11 @@ def run_client(router_addr, router_port, server_addr, server_port):
     finally:
         conn.close()
 
+# Help and usage
+# python httpc.py --help
 
-# Usage:
-# python echoclient.py --routerhost localhost --routerport 3000 --serverhost localhost --serverport 8007
-
-parser = argparse.ArgumentParser()
-parser = argparse.ArgumentParser(description=help_msg, add_help=False)
-parser.add_argument("request", help=request_help_msg, choices=['post', 'get'])
+parser = argparse.ArgumentParser(description=HttpRequest.help_msg, add_help=False)
+parser.add_argument("request", help=HttpRequest.request_help_msg, choices=['post', 'get'])
 parser.add_argument("URL", help="URL for request")
 parser.add_argument('-H', '--help', action='help', help="Show help message")
 parser.add_argument("-v", help="Return verbose response", action="store_true", default=False)
@@ -87,19 +84,19 @@ parser.add_argument("--routerhost", help="router host", default="127.0.0.1")
 parser.add_argument("--routerport", help="router port", type=int, default=3000)
 parser.add_argument("--serverhost", help="server host", default="127.0.0.1")
 parser.add_argument("--serverport", help="server port", type=int, default=8080)
-arguments = parser.parse_args()
-
-if arguments.request.casefold() == "get".casefold():
-
-    if arguments.f or arguments.d:
+args = parser.parse_args()
+request = parse_commands(args)
+if args.request.casefold() == "get".casefold():
+    if args.f or args.d:
         print("-d and -f arguments are only for Post request")
         exit(1)
 else:
-    if arguments.f == '' and arguments.d == '':
-        print("Pass and argument for Post request, Have a look at -v and -f arguments")
-    if arguments.f != '' and arguments.d != '':
+    if args.f == '' and args.d == '':
+        print("Pass an argument for Post request, Have a look at -v and -f arguments")
+        exit(1)
+    if args.f != '' and args.d != '':
         print("both -f and -d if arguments can not exist together")
         exit(1)
-args = parser.parse_args()
-
+http_request = HttpRequest.create_request(request)
+print(http_request)
 run_client(args.routerhost, args.routerport, args.serverhost, args.serverport)
