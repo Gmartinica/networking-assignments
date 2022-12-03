@@ -103,7 +103,7 @@ def create_response(data, path, verbose=False):
             response = f"HTTP/1.0 {status} {status_phrase(status)}\r\nDate: {date}\r\nConnection: close\r\n\r\n"
     except Exception as e:
         print("Error: ", e)
-    return response.encode("utf-8")
+    return response
 
 
 def dir_path(string):

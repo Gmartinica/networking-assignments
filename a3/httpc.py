@@ -4,7 +4,9 @@ import socket
 from urllib.parse import urlparse
 import HttpRequest
 from packet import Packet
-
+import math
+PAYLOAD_SIZE = 1013
+import PacketsConverter
 
 def parse_commands(args):
     """Given a dict of command line arguments, return a dict with the HTTP req elements"""
@@ -40,28 +42,35 @@ def parse_commands(args):
             exit(1)
     return request
 
-def run_client(router_addr, router_port, server_addr, server_port):
+def run_client(router_addr, router_port, server_addr, server_port, request):
     peer_ip = ipaddress.ip_address(socket.gethostbyname(server_addr))
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     timeout = 5
     try:
-        msg = "Hello World"
         p = Packet(packet_type=0,
                    seq_num=1,
                    peer_ip_addr=peer_ip,
                    peer_port=server_port,
-                   payload=msg.encode("utf-8"))
+                   payload=request)
         conn.sendto(p.to_bytes(), (router_addr, router_port))
-        print('Send "{}" to router'.format(msg))
+        print('Send "{}" to router'.format(request))
+
 
         # Try to receive a response within timeout
         conn.settimeout(timeout)
         print('Waiting for a response')
-        response, sender = conn.recvfrom(1024)
-        p = Packet.from_bytes(response)
-        print('Router: ', sender)
-        print('Packet: ', p)
-        print('Payload: ' + p.payload.decode("utf-8"))
+        packets_received = []
+        while len(packets_received) < 10:
+                response, sender = conn.recvfrom(1024)
+                p = Packet.from_bytes(response)
+                packets_received.append(p)
+                if p.packet_type == 5:
+                    break
+        print(packets_received)
+        print(PacketsConverter.create_msg(packets_received))
+        # print('Router: ', sender)
+        # print('Packet: ', p)
+        # print('Payload: ' + p.payload.decode("utf-8"))
 
     except socket.timeout:
         print('No response after {}s'.format(timeout))
@@ -99,4 +108,4 @@ else:
         exit(1)
 http_request = HttpRequest.create_request(request)
 print(http_request)
-run_client(args.routerhost, args.routerport, args.serverhost, args.serverport)
+run_client(args.routerhost, args.routerport, args.serverhost, args.serverport, http_request)
