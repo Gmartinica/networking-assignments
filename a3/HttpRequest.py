@@ -23,17 +23,17 @@ def read_response(res: str, verbose=False, out_file=None):
     """Given HTTP response, output to terminal or to file"""
     if not verbose:
         try:
-            response = res.split('\r\n\n')[1]  # Get just response body
+            res = res.split('\r\n\n')[1]  # Get just response body
         except IndexError:
-            response = "No response body"
+            res = ""
     if not out_file:
-        print(response)
+        print(res)
     # Write output to file
     else:
         try:
             out = open(out_file, "a")  # append mode
             out.write("-----------------------------\n")
-            out.write(response)
+            out.write(res)
             out.write("\n______________________________\n")
             out.close()
 
@@ -43,7 +43,7 @@ def read_response(res: str, verbose=False, out_file=None):
             try:
                 out = open(outFilename, "a")  # append mode
                 out.write("-----------------------------\n")
-                out.write(response)
+                out.write(res)
                 out.write("\n______________________________\n")
                 out.close()
             except IOError:
