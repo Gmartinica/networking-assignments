@@ -105,9 +105,11 @@ def run_client(router_addr, router_port, server_addr, server_port, request):
         conn.settimeout(timeout)
         print('Waiting for a response')
         receiver = ReceiverWindow()
-        while not receiver.ready():
+        while not receiver.ready:
             response, sender = conn.recvfrom(1024)
             p = Packet.from_bytes(response)
+            print(" packet :")
+            print(p)
 
             if p.packet_type == PacketType.DATA.value:
                 receiver.insert(p)
@@ -134,8 +136,8 @@ def run_client(router_addr, router_port, server_addr, server_port, request):
                 p_ack.peer_ip_addr = peer_ip
                 conn.sendto(p_ack.to_bytes(), (router_addr, router_port))
                 '''
-            print("RECEIVED EVERYTHING")
-            print(receiver.get_packets())
+        print("RECEIVED EVERYTHING")
+        print(receiver.get_packets())
         #     # append to our receiveer list
         #     packets_received.append(p)
         #     if p.packet_type == 5:
