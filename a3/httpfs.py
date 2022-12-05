@@ -8,7 +8,9 @@ import HttpRequest
 import math
 
 import time
-from threading import Ti
+from threading import Timer, Lock
+
+ack_tracker = list()
 
 
 #Todo not tested yet only the overview
@@ -51,14 +53,25 @@ def run_server(port):
     finally:
         conn.close()
 
-def sentAll(li):
+
+def ack_all(li):
   rslt = True
   for i in range(0, len(li)):
     if li[i].isRecived == False:
       rslt = False
   return rslt
 
+def resend_packets(conn,packet_in_byte, sender, q):
+    if not (ack_tracker[str(q)][1]):
+        t2 = Timer(3, resend_packets, [packet_in_byte, sender, p2.seq_num])
+        conn.sendto(packet_in_byte, sender)
+        t2.start()
+
+
+
 def handle_client(conn, data, sender):
+    global ack_tracker
+    lock = Lock()
     try:
         data = [Packet.from_bytes(data)]
         msg = PacketsConverter.create_msg(data)
@@ -73,23 +86,65 @@ def handle_client(conn, data, sender):
         print(res_packets)
 
         #track if packets ack is is received or not
-        packets_tracker = list()
-        for i in range(0, len(res_packets)):
-            packets_tracker.append(False)
+        seq_num_list = [p.seq_num for p in res_packets]
+        lock.acquire()
+        ack_tracker = {num: [False, False] for num in seq_num_list}
+        lock.release()
 
-        while not(sentAll(protocol_list)):
-            for p in res_packets:
-                conn.sendto(p.to_bytes(), sender)
-                '''
-                t1 = Timer(3, resend, ['Timeout:'])
-                t1.start()  # run is called
-                
-                t2 = Timer(3, resend, ['Timeout:'])
-                t2.start()  # run is called
-                
-                if we recive ack  
+
+        a = 0
+        b = 1
+        while not(sentAll(ack_tracker)):
+            #for p in res_packets:
+           # for i in range(0, (len(res_packets)-1)):
+
+
+            p1 = res_packets[a]
+            p2 = res_packets[b]
+            
+            if ack_tracker[str(p1.seq_num)][0]: # if we already have ack of the left most packet we slide
+                a =a+1
+                b =b+1
+                continue
+
+            # send the packets if we already havent sent them
+
+            t1 = Timer(3, resend_packets, [conn, p1.to_bytes(), sender, p1.seq_num])
+            if not(ack_tracker[str(p1.seq_num)][0]):
+                conn.sendto(p1.to_bytes(), sender)
+                t1.start()
+
+            t2 = Timer(3, resend_packets, [conn, p2.to_bytes(), sender, p2.seq_num])
+            if not(ack_tracker[str(p2.seq_num)][0]):
+                conn.sendto(p2.to_bytes(), sender)
+                t2.start()
+
+            response, sender1 = conn.recvfrom(1024)
+            rec_pack = Packet.from_bytes(response)
+            lock.acquire()
+            ack_tracker[str(rec_pack.seq_num)][1] =True
+            lock.release()
+
+            if rec_pack.seq_num == p2.seq_num :
+                t2.cancel()
+                response2, sender2 = conn.recvfrom(1024)
+                rec_pack2 = Packet.from_bytes(response)
+                lock.acquire()
+                ack_tracker[str(rec_pack2.seq_num)][1] = True
+                lock.release()
+                if rec_pack.seq_num == p1.seq_num:
+                    t1.cancel()
+                    a = a+1
+                    b= b+1
+                    continue
+            elif rec_pack.seq_num == p1.seq_num:
                 t1.cancel()
-                '''
+                a = a + 1
+                b = b + 1
+                continue
+
+
+
 
 
             # # TODO msg = creat_msg(type(get/post), )
