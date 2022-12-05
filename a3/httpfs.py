@@ -69,7 +69,7 @@ def ack_all(dict):
 
 def resend_packets(conn, packet_in_byte, sender, q):
     if not (ack_tracker[q][1]):
-        t2 = Timer(3, resend_packets, [packet_in_byte, sender, p2.seq_num])
+        t2 = Timer(3, resend_packets, [conn, packet_in_byte, sender, q])
         conn.sendto(packet_in_byte, sender)
         t2.start()
 
@@ -108,7 +108,7 @@ def handle_client(conn, data, sender):
             p1 = res_packets[a]
             p2 = res_packets[b]
             
-            if ack_tracker[p1.seq_num][0]:  # if we already have ack of the left most packet we slide
+            if ack_tracker[p1.seq_num][1]:  # if we already have ack of the left most packet we slide
                 a = a + 1
                 b = b + 1
                 continue

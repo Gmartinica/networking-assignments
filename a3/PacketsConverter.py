@@ -9,7 +9,7 @@ def create_packets(msg, num_of_packets, packets, ip_addr, port):
     for i in range(0, num_of_packets):
         if i == num_of_packets - 1:
             p = Packet(packet_type=5,
-                       seq_num=i+1,
+                       seq_num=i,
                        peer_ip_addr=ip_addr,
                        peer_port=port,
                        payload=msg[i * PAYLOAD_SIZE:].encode("utf-8"))
@@ -17,7 +17,7 @@ def create_packets(msg, num_of_packets, packets, ip_addr, port):
             packets.append(p)
         else:
             p = Packet(packet_type=0,
-                       seq_num=i+1,
+                       seq_num=i,
                        peer_ip_addr=ip_addr,
                        peer_port=port,
                        payload=msg[i * PAYLOAD_SIZE:(i + 1) * PAYLOAD_SIZE].encode("utf-8"))
