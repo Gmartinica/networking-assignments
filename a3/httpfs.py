@@ -15,7 +15,7 @@ def three_way_handshake_server(conn):
     start = time.time()
     print("In three way")
     while True:
-        if time.time() - start > 15:
+        if time.time() - start > 25:
             return False
         data, sender = conn.recvfrom(1024)  # waiting for SYN
         router_addr, router_port = sender
