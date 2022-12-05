@@ -69,6 +69,7 @@ def ack_all(dict):
 
 def resend_packets(conn, packet_in_byte, sender, q):
     if not (ack_tracker[q][1]):
+        print("resending packet" + str(q))
         t2 = Timer(3, resend_packets, [conn, packet_in_byte, sender, q])
         conn.sendto(packet_in_byte, sender)
         t2.start()
@@ -99,11 +100,21 @@ def handle_client(conn, data, sender):
         a = 0
         b = 1
         while not (ack_all(ack_tracker)):
+            print(ack_all(ack_tracker))
             print("loop : "+str(a))
             # for p in res_packets:
             # for i in range(0, (len(res_packets)-1)):
-            if b > len(res_packets):
-                break
+            print("b" + str(b))
+            if b >= len(res_packets):
+                print("HI")
+                responseF, senderF = conn.recvfrom(1024)
+                rec_packF = Packet.from_bytes(responseF)
+                print("GOT HERE ACK " + str(rec_packF.seq_num))
+                print(rec_packF)
+                lock.acquire()
+                ack_tracker[rec_packF.seq_num][1] = True
+                lock.release()
+                continue
                 
             p1 = res_packets[a]
             p2 = res_packets[b]
@@ -145,7 +156,7 @@ def handle_client(conn, data, sender):
             if rec_pack.seq_num == p2.seq_num:
                 t2.cancel()
                 response2, sender2 = conn.recvfrom(1024)
-                rec_pack2 = Packet.from_bytes(response)
+                rec_pack2 = Packet.from_bytes(response2)
                 print("rec ack " + str(rec_pack2.seq_num))
                 print(rec_pack2)
                 lock.acquire()

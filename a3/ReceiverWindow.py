@@ -15,15 +15,20 @@ class ReceiverWindow:
             self.rec_packets = tmp
 
     def all_packets_received(self, fin_packet):
+        print("HOT HERE")
+        print(len(self.rec_packets))
         end = fin_packet.seq_num
-        if len(self.rec_packets) == 0 or len(self.rec_packets) == end - 1:
+        if len(self.rec_packets) == 0 or len(self.rec_packets) == end:
             self.ready = True
             return True
         else:
             return False
 
     def get_packets(self):
-        return self.rec_packets
+        packets = []
+        for x in self.rec_packets:
+            packets.append(x[1])
+        return packets
 
 
 def main():

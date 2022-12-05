@@ -119,8 +119,9 @@ def run_client(router_addr, router_port, server_addr, server_port, request):
                              peer_port=p.peer_port,
                              payload="")
                 conn.sendto(ack.to_bytes(), sender)
-            elif p.packet_type == PacketType.DATA.FIN:
-                if ReceiverWindow.all_packets_received(p):
+            elif p.packet_type == PacketType.FIN.value:
+                print("FIN PACKET")
+                if receiver.all_packets_received(p):
                     receiver.insert(p)
                     fin_ack = Packet(packet_type=PacketType.ACK.value,
                                      seq_num=p.seq_num,
@@ -137,7 +138,7 @@ def run_client(router_addr, router_port, server_addr, server_port, request):
                 conn.sendto(p_ack.to_bytes(), (router_addr, router_port))
                 '''
         print("RECEIVED EVERYTHING")
-        print(receiver.get_packets())
+        #print(receiver.get_packets())
         #     # append to our receiveer list
         #     packets_received.append(p)
         #     if p.packet_type == 5:
@@ -147,6 +148,8 @@ def run_client(router_addr, router_port, server_addr, server_port, request):
         # # print('Router: ', sender)
         # # print('Packet: ', p)
         # # print('Payload: ' + p.payload.decode("utf-8"))
+        msg = PacketsConverter.create_msg(receiver.get_packets())
+        print(msg)
 
     except socket.timeout:
         print('No response after {}s'.format(timeout))
