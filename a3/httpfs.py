@@ -45,29 +45,34 @@ def three_way_handshake_server(conn):
             data, sender = conn.recvfrom(1024)  # waiting for ACK
 
             p = Packet.from_bytes(data)
-            print("3wayrecived ack " + str(p.packet_type) + '  ' + str(PacketType.ACK.value))
+            print("3wayrecived ack Type:  " + str(p.packet_type) + ', meant to be ' + str(PacketType.ACK.value))
             print(p)
             if p.packet_type == PacketType.ACK.value:  # received ACK so we are good to go // and p.seq_num == seq_start + 2
                 result = True
                 break
+            elif p.packet_type == PacketType.SYN.value:
+                continue
         except conn.timeout:
             pass
     return result
+
 
 
 def run_server(port):
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         conn.bind(('', port))
+        conn.settimeout(30)
         print('Echo server is listening at', port)
         if three_way_handshake_server(conn):
-            conn.settimeout(30)
             while True:
                 data, sender = conn.recvfrom(1024)
                 handle_client(conn, data, sender)
         else:
             print("Something went wrong with 3 way handshake")
             exit(1)
+
+
     except socket.timeout:
         print("client terminated the connection")
         for process in all_processes:
@@ -128,8 +133,9 @@ def handle_client(conn, data, sender):
                 # for p in res_packets:
                 # for i in range(0, (len(res_packets)-1)):
                 print("b" + str(b))
-                if b >= len(res_packets):
-                    print("HI***********")
+                if a >= len(res_packets):
+                    print(len(res_packets))
+                    print("HI***********1")
                     responseF, senderF = conn.recvfrom(1024)
                     rec_packF = Packet.from_bytes(responseF)
                     print("(4)GOT HERE ACK " + str(rec_packF.seq_num))
@@ -175,13 +181,11 @@ def handle_client(conn, data, sender):
                 lock.acquire()
                 ack_tracker[rec_pack.seq_num][1] = True
                 lock.release()
-                
+
                 if rec_pack.seq_num == p1.seq_num:
                     t1.cancel()
                     a = a + 1
                     continue
-
-
 
         else:
             while not (ack_all(ack_tracker)):
@@ -309,3 +313,4 @@ test_msg = 'POST /lol HTTP/1.0\nHost: 127.0.0.1\nContent-Length:6\n\nLolazo\n'
 res = HttpResponse.create_response(test_msg, args.PATH)
 HttpRequest.read_response(res, True, "l.txt")
 run_server(args.PORT)
+
