@@ -20,7 +20,7 @@ all_processes = []
 # Probably need to change to sth similar to client and we check 1 by 1
 def three_way_handshake_server(conn):
     start = time.time()
-    conn.settimeout(15)
+    conn.settimeout(50)
     print("In three way")
     p = None
     while True:
@@ -52,8 +52,8 @@ def three_way_handshake_server(conn):
                 break
             elif p.packet_type == PacketType.SYN.value:
                 continue
-        except conn.timeout:
-            pass
+        except Exception as e:
+            continue
     return result
 
 

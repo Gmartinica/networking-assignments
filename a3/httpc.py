@@ -144,8 +144,10 @@ def run_client(router_addr, router_port, server_addr, server_port, request):
                                  payload="")
                     send_packet(conn, ack, router_addr, router_port)
                     conn.sendto(req.to_bytes(), (router_addr, router_port))
-            except conn.timeout:
+            except Exception as e:
+                print("EXCEPTION")
                 conn.sendto(req.to_bytes(), (router_addr, router_port))
+                continue
             '''
                 # sending back the ack
                 p_ack = p
@@ -204,7 +206,6 @@ else:
         print("both -f and -d if arguments can not exist together")
         exit(1)
 http_request = HttpRequest.create_request(request)
-print(http_request)
 if three_way_handshake(args.routerhost, args.routerport, args.serverhost, args.serverport):
     print("Got through handshake")
 else:
