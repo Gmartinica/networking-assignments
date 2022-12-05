@@ -140,7 +140,8 @@ def handle_client(conn, data, sender):
                     rec_packF = Packet.from_bytes(responseF)
                     print("(4)GOT HERE ACK " + str(rec_packF.seq_num))
                     print(rec_packF)
-                    lock.acquire()
+                    if rec_packF.type == PacketType.ACK:
+                        lock.acquire()
                     ack_tracker[rec_packF.seq_num][1] = True
                     lock.release()
                     continue
@@ -158,7 +159,8 @@ def handle_client(conn, data, sender):
                     print("(3)GOT HERE ACK " + str(rec_packF.seq_num))
                     print(rec_packF)
                     lock.acquire()
-                    ack_tracker[rec_packF.seq_num][1] = True
+                    if rec_packF.type == PacketType.ACK:
+                        ack_tracker[rec_packF.seq_num][1] = True
                     lock.release()
                     if rec_packF.seq_num == p1.seq_num:
                         a = a + 1
@@ -179,10 +181,11 @@ def handle_client(conn, data, sender):
                 print("(2) rec ack " + str(rec_pack.seq_num))
                 print(rec_pack)
                 lock.acquire()
-                ack_tracker[rec_pack.seq_num][1] = True
+                if rec_pack.type == PacketType.ACK:
+                    ack_tracker[rec_pack.seq_num][1] = True
                 lock.release()
 
-                if rec_pack.seq_num == p1.seq_num:
+                if rec_pack.seq_num == p1.seq_num and rec_pack.type == PacketType.ACK:
                     t1.cancel()
                     a = a + 1
                     continue
@@ -201,7 +204,8 @@ def handle_client(conn, data, sender):
                     print("(4)GOT HERE ACK " + str(rec_packF.seq_num))
                     print(rec_packF)
                     lock.acquire()
-                    ack_tracker[rec_packF.seq_num][1] = True
+                    if rec_packF.type == PacketType.ACK:
+                        ack_tracker[rec_packF.seq_num][1] = True
                     lock.release()
                     continue
 
@@ -220,9 +224,10 @@ def handle_client(conn, data, sender):
                     print("(3)GOT HERE ACK " + str(rec_packF.seq_num))
                     print(rec_packF)
                     lock.acquire()
-                    ack_tracker[rec_packF.seq_num][1] = True
+                    if rec_packF.type == PacketType.ACK:
+                        ack_tracker[rec_packF.seq_num][1] = True
                     lock.release()
-                    if rec_packF.seq_num == p1.seq_num:
+                    if rec_packF.seq_num == p1.seq_num and rec_packF.type == PacketType.ACK:
                         a = a + 1
                         b = b + 1
                         continue
@@ -254,24 +259,26 @@ def handle_client(conn, data, sender):
                 print("(2) rec ack " + str(rec_pack.seq_num))
                 print(rec_pack)
                 lock.acquire()
-                ack_tracker[rec_pack.seq_num][1] = True
+                if rec_pack.type == PacketType.ACK:
+                    ack_tracker[rec_pack.seq_num][1] = True
                 lock.release()
 
-                if rec_pack.seq_num == p2.seq_num:
+                if rec_pack.seq_num == p2.seq_num and rec_pack.type == PacketType.ACK:
                     t2.cancel()
                     response2, sender2 = conn.recvfrom(1024)
                     rec_pack2 = Packet.from_bytes(response2)
                     print("(1) rec ack " + str(rec_pack2.seq_num))
                     print(rec_pack2)
                     lock.acquire()
-                    ack_tracker[rec_pack2.seq_num][1] = True
+                    if rec_pack2.type == PacketType.ACK:
+                        ack_tracker[rec_pack2.seq_num][1] = True
                     lock.release()
-                    if rec_pack.seq_num == p1.seq_num:
+                    if rec_pack.seq_num == p1.seq_num and rec_pack.type == PacketType.ACK:
                         t1.cancel()
                         a = a + 1
                         b = b + 1
                         continue
-                elif rec_pack.seq_num == p1.seq_num:
+                elif rec_pack.seq_num == p1.seq_num and rec_pack.type == PacketType.ACK:
                     t1.cancel()
                     if b == len(res_packets) - 1:
                         responseF, senderF = conn.recvfrom(1024)
@@ -279,7 +286,8 @@ def handle_client(conn, data, sender):
                         print("(0) ACK " + str(rec_packF.seq_num))
                         print(rec_packF)
                         lock.acquire()
-                        ack_tracker[rec_packF.seq_num][1] = True
+                        if rec_packF.type == PacketType.ACK:
+                            ack_tracker[rec_packF.seq_num][1] = True
                         lock.release()
                     print("************")
                     print(ack_all(ack_tracker))
