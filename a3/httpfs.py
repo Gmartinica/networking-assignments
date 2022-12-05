@@ -175,6 +175,11 @@ def handle_client(conn, data, sender):
                 lock.acquire()
                 ack_tracker[rec_pack.seq_num][1] = True
                 lock.release()
+                
+                if rec_pack.seq_num == p1.seq_num:
+                    t1.cancel()
+                    a = a + 1
+                    continue
 
 
 
