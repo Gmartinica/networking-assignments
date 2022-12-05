@@ -126,8 +126,9 @@ def handle_client(conn, data, sender):
                 # for p in res_packets:
                 # for i in range(0, (len(res_packets)-1)):
                 print("b" + str(b))
-                if b >= len(res_packets):
-                    print("HI***********")
+                if a >= len(res_packets):
+                    print(len(res_packets))
+                    print("HI***********1")
                     responseF, senderF = conn.recvfrom(1024)
                     rec_packF = Packet.from_bytes(responseF)
                     print("(4)GOT HERE ACK " + str(rec_packF.seq_num))
@@ -172,7 +173,12 @@ def handle_client(conn, data, sender):
                 lock.acquire()
                 ack_tracker[rec_pack.seq_num][1] = True
                 lock.release()
-                
+
+                if rec_pack.seq_num == p1.seq_num:
+                    t1.cancel()
+                    a = a + 1
+                    continue
+
 
 
         else:
