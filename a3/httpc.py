@@ -100,49 +100,51 @@ def run_client(router_addr, router_port, server_addr, server_port, request):
                    payload=request)
         conn.sendto(p.to_bytes(), (router_addr, router_port))
         print('Send "{}" to router'.format(request))
-
         # Try to receive a response within timeout
         conn.settimeout(timeout)
         print('Waiting for a response')
         receiver = ReceiverWindow()
+        req = Packet(packet_type=0,
+                     seq_num=1,
+                     peer_ip_addr=peer_ip,
+                     peer_port=server_port,
+                     payload=request)
         while not receiver.ready:
-            response, sender = conn.recvfrom(1024)
-            p = Packet.from_bytes(response)
-            print(" packet :")
-            print(p)
+            try:
+                response, sender = conn.recvfrom(1024)
+                p = Packet.from_bytes(response)
+                print(" packet :")
+                print(p)
 
-            if p.packet_type == PacketType.DATA.value:
-                receiver.insert(p)
-                ack = Packet(packet_type=PacketType.ACK.value,
-                             seq_num=p.seq_num,
-                             peer_ip_addr=p.peer_ip_addr,
-                             peer_port=p.peer_port,
-                             payload="")
-                conn.sendto(ack.to_bytes(), sender)
-            elif p.packet_type == PacketType.FIN.value:
-                print("FIN PACKET")
-                print(receiver.get_packets())
-
-                if receiver.all_packets_received(p):
+                if p.packet_type == PacketType.DATA.value:
                     receiver.insert(p)
-                    fin_ack = Packet(packet_type=PacketType.ACK.value,
-                                     seq_num=p.seq_num,
-                                     peer_ip_addr=p.peer_ip_addr,
-                                     peer_port=p.peer_port,
-                                     payload="")
-                    conn.sendto(fin_ack.to_bytes(), sender)
-            elif p.packet_type == PacketType.SYN_ACK.value:
-                ack = Packet(packet_type=PacketType.ACK.value,
-                             seq_num=3,
-                             peer_ip_addr=peer_ip,
-                             peer_port=server_port,
-                             payload="")
-                send_packet(conn, ack, router_addr, router_port)
-                req = Packet(packet_type=0,
-                           seq_num=1,
-                           peer_ip_addr=peer_ip,
-                           peer_port=server_port,
-                           payload=request)
+                    ack = Packet(packet_type=PacketType.ACK.value,
+                                 seq_num=p.seq_num,
+                                 peer_ip_addr=p.peer_ip_addr,
+                                 peer_port=p.peer_port,
+                                 payload="")
+                    conn.sendto(ack.to_bytes(), sender)
+                elif p.packet_type == PacketType.FIN.value:
+                    print("FIN PACKET")
+                    print(receiver.get_packets())
+
+                    if receiver.all_packets_received(p):
+                        receiver.insert(p)
+                        fin_ack = Packet(packet_type=PacketType.ACK.value,
+                                         seq_num=p.seq_num,
+                                         peer_ip_addr=p.peer_ip_addr,
+                                         peer_port=p.peer_port,
+                                         payload="")
+                        conn.sendto(fin_ack.to_bytes(), sender)
+                elif p.packet_type == PacketType.SYN_ACK.value:
+                    ack = Packet(packet_type=PacketType.ACK.value,
+                                 seq_num=3,
+                                 peer_ip_addr=peer_ip,
+                                 peer_port=server_port,
+                                 payload="")
+                    send_packet(conn, ack, router_addr, router_port)
+                    conn.sendto(req.to_bytes(), (router_addr, router_port))
+            except conn.timeout:
                 conn.sendto(req.to_bytes(), (router_addr, router_port))
             '''
                 # sending back the ack

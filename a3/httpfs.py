@@ -20,6 +20,7 @@ all_processes = []
 # Probably need to change to sth similar to client and we check 1 by 1
 def three_way_handshake_server(conn):
     start = time.time()
+    conn.settimeout(15)
     print("In three way")
     p = None
     while True:
@@ -32,22 +33,25 @@ def three_way_handshake_server(conn):
         if p.packet_type == PacketType.SYN.value:  # received syn  so we will send synAck
             break
     while True:
-        syn_ack = Packet(packet_type=PacketType.SYN_ACK.value,
-                         seq_num=p.seq_num + 1,
-                         peer_ip_addr=p.peer_ip_addr,
-                         peer_port=p.peer_port,
-                         payload="")
-        udp.send_packet(conn, syn_ack, router_addr, router_port)
+        try:
+            syn_ack = Packet(packet_type=PacketType.SYN_ACK.value,
+                             seq_num=p.seq_num + 1,
+                             peer_ip_addr=p.peer_ip_addr,
+                             peer_port=p.peer_port,
+                             payload="")
+            udp.send_packet(conn, syn_ack, router_addr, router_port)
 
-        # Now wait for ack
-        data, sender = conn.recvfrom(1024)  # waiting for ACK
+            # Now wait for ack
+            data, sender = conn.recvfrom(1024)  # waiting for ACK
 
-        p = Packet.from_bytes(data)
-        print("3wayrecived ack " + str(p.packet_type) + '  ' + str(PacketType.ACK.value))
-        print(p)
-        if p.packet_type == PacketType.ACK.value:  # received ACK so we are good to go // and p.seq_num == seq_start + 2
-            result = True
-            break
+            p = Packet.from_bytes(data)
+            print("3wayrecived ack " + str(p.packet_type) + '  ' + str(PacketType.ACK.value))
+            print(p)
+            if p.packet_type == PacketType.ACK.value:  # received ACK so we are good to go // and p.seq_num == seq_start + 2
+                result = True
+                break
+        except conn.timeout:
+            pass
     return result
 
 
@@ -55,17 +59,15 @@ def run_server(port):
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         conn.bind(('', port))
-        conn.settimeout(30)
         print('Echo server is listening at', port)
         if three_way_handshake_server(conn):
+            conn.settimeout(30)
             while True:
                 data, sender = conn.recvfrom(1024)
                 handle_client(conn, data, sender)
         else:
             print("Something went wrong with 3 way handshake")
             exit(1)
-
-
     except socket.timeout:
         print("client terminated the connection")
         for process in all_processes:
