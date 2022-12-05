@@ -4,10 +4,14 @@ import socket
 from urllib.parse import urlparse
 import HttpRequest
 from packet import Packet
+from PacketType import PacketType
 import math
+from udp import UDP, send_packet
 import PacketsConverter
-PAYLOAD_SIZE = 1013
+from threading import Timer
+from ReceiverWindow import ReceiverWindow
 
+PAYLOAD_SIZE = 1013
 
 
 def parse_commands(args):
@@ -44,55 +48,45 @@ def parse_commands(args):
             exit(1)
     return request
 
-#Todo not tested yet only the overview
-# return True if the hanshake is corectly don
+
+# Share only one conn among functions
 def three_way_handshake(router_addr, router_port, server_addr, server_port):
     peer_ip = ipaddress.ip_address(socket.gethostbyname(server_addr))
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     timeout = 5
-    try:
-        syn = Packet(packet_type=3,
-                     seq_num=1,
-                     peer_ip_addr=peer_ip,
-                     peer_port=server_port,
-                     payload="syn")
-        conn.sendto(syn.to_bytes(), (router_addr, router_port))
-        print('Send "{}" to router'.format("syn"))
+    syn = Packet(packet_type=PacketType.SYN.value,
+                 seq_num=1,
+                 peer_ip_addr=peer_ip,
+                 peer_port=server_port,
+                 payload="")
 
+    # syn_thread = Timer(send_packet, (conn, syn, router_addr, router_port))
 
-        # Try to receive a response within timeout
-        conn.settimeout(timeout)
-        print('Waiting for a response')
-        packets_received = []
-        while True:
-                response, sender = conn.recvfrom(1024)
-                p = Packet.from_bytes(response)
-                packets_received.append(p)
-                if p.packet_type == 4:   # we recived synAck from server
-                    break
-                
-        ack = Packet(packet_type=1,
-                     seq_num=2,
-                     peer_ip_addr=peer_ip,
-                     peer_port=server_port,
-                     payload="ack")
-        conn.sendto(ack.to_bytes(), (router_addr, router_port))
-        print('Send "{}" to router'.format("ack"))
-        return True
-        
-        
-        print(packets_received)
-        print(PacketsConverter.create_msg(packets_received))
-        # print('Router: ', sender)
-        # print('Packet: ', p)
-        # print('Payload: ' + p.payload.decode("utf-8"))
+    send_packet(conn, syn, router_addr, router_port)
+    # Try to receive a response within timeout
+    conn.settimeout(timeout)
+    print('Waiting for a response')
+    timeout_count = 0
+    while True:
+        try:
+            response, sender = conn.recvfrom(1024)
+            p = Packet.from_bytes(response)
+            print(p)
+            if p.packet_type == PacketType.SYN_ACK.value:  # Received SYN ACK
+                ack = Packet(packet_type=PacketType.ACK.value,
+                             seq_num=3,
+                             peer_ip_addr=peer_ip,
+                             peer_port=server_port,
+                             payload="")
+                send_packet(conn, ack, router_addr, router_port)
+                return True
+        except socket.timeout:
+            timeout_count += 1
+            if timeout_count > 6:
+                return False
+            send_packet(conn, syn, router_addr, router_port)
+            continue
 
-    except socket.timeout:
-        print('No response after {}s'.format(timeout))
-        return False
-    finally:
-        conn.close()
-    
 
 def run_client(router_addr, router_port, server_addr, server_port, request):
     peer_ip = ipaddress.ip_address(socket.gethostbyname(server_addr))
@@ -107,16 +101,32 @@ def run_client(router_addr, router_port, server_addr, server_port, request):
         conn.sendto(p.to_bytes(), (router_addr, router_port))
         print('Send "{}" to router'.format(request))
 
-
         # Try to receive a response within timeout
         conn.settimeout(timeout)
         print('Waiting for a response')
-        packets_received = []
-        while len(packets_received) < 10:
-                response, sender = conn.recvfrom(1024)
-                p = Packet.from_bytes(response)
+        receiver = ReceiverWindow()
+        while not receiver.ready():
+            response, sender = conn.recvfrom(1024)
+            p = Packet.from_bytes(response)
 
-                '''
+            if p.packet_type == PacketType.DATA.value:
+                receiver.insert(p)
+                ack = Packet(packet_type=PacketType.ACK.value,
+                             seq_num=p.seq_num,
+                             peer_ip_addr=p.peer_ip_addr,
+                             peer_port=p.peer_port,
+                             payload="")
+                conn.sendto(ack.to_bytes(), sender)
+            elif p.packet_type == PacketType.DATA.FIN:
+                if ReceiverWindow.all_packets_received(p):
+                    receiver.insert(p)
+                    fin_ack = Packet(packet_type=PacketType.ACK.value,
+                                     seq_num=p.seq_num,
+                                     peer_ip_addr=p.peer_ip_addr,
+                                     peer_port=p.peer_port,
+                                     payload="")
+                    conn.sendto(fin_ack.to_bytes(), sender)
+            '''
                 # sending back the ack
                 p_ack = p
                 p_ack.packet_type = 1
@@ -124,21 +134,23 @@ def run_client(router_addr, router_port, server_addr, server_port, request):
                 p_ack.peer_ip_addr = peer_ip
                 conn.sendto(p_ack.to_bytes(), (router_addr, router_port))
                 '''
-
-                #append to our receiveer list
-                packets_received.append(p)
-                if p.packet_type == 5:
-                    break
-        print(packets_received)
-        print(PacketsConverter.create_msg(packets_received))
-        # print('Router: ', sender)
-        # print('Packet: ', p)
-        # print('Payload: ' + p.payload.decode("utf-8"))
+            print("RECEIVED EVERYTHING")
+            print(receiver.get_packets())
+        #     # append to our receiveer list
+        #     packets_received.append(p)
+        #     if p.packet_type == 5:
+        #         break
+        # print(packets_received)
+        # print(PacketsConverter.create_msg(packets_received))
+        # # print('Router: ', sender)
+        # # print('Packet: ', p)
+        # # print('Payload: ' + p.payload.decode("utf-8"))
 
     except socket.timeout:
         print('No response after {}s'.format(timeout))
     finally:
         conn.close()
+
 
 # Help and usage
 # python httpc.py --help
@@ -171,5 +183,8 @@ else:
         exit(1)
 http_request = HttpRequest.create_request(request)
 print(http_request)
-#TODO if hadshake is true then  run client
+if three_way_handshake(args.routerhost, args.routerport, args.serverhost, args.serverport):
+    print("Got through handshake")
+else:
+    exit(4)
 run_client(args.routerhost, args.routerport, args.serverhost, args.serverport, http_request)
