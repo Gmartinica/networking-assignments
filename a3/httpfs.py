@@ -8,15 +8,17 @@ from packet import Packet
 import HttpResponse
 import HttpRequest
 import math
+import udp
 
 
 def three_way_handshake_server(conn):
     start = time.time()
     print("In three way")
     while True:
-        if time.time() - start > 10:
+        if time.time() - start > 15:
             return False
         data, sender = conn.recvfrom(1024)  # waiting for SYN
+        router_addr, router_port = sender
         p = Packet.from_bytes(data)
         if p.packet_type == 3:  # received syn  so we will send synAck
             seq_start = p.seq_num
@@ -25,7 +27,7 @@ def three_way_handshake_server(conn):
                              peer_ip_addr=p.peer_ip_addr,
                              peer_port=p.peer_port,
                              payload="")
-            conn.sendto(syn_ack.to_bytes(), sender)
+            udp.send_packet(conn, syn_ack, router_addr, router_port)
 
             # Now wait for ack
             data, sender = conn.recvfrom(1024)  # waiting for ACK

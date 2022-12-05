@@ -6,7 +6,9 @@ import HttpRequest
 from packet import Packet
 from PacketType import PacketType
 import math
+from udp import UDP, send_packet
 import PacketsConverter
+from threading import Timer
 
 PAYLOAD_SIZE = 1013
 
@@ -46,39 +48,45 @@ def parse_commands(args):
     return request
 
 
+
+
 # Share only one conn among functions
 def three_way_handshake(router_addr, router_port, server_addr, server_port):
     peer_ip = ipaddress.ip_address(socket.gethostbyname(server_addr))
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     timeout = 5
-    try:
-        syn = Packet(packet_type=PacketType.SYN.value,
-                     seq_num=1,
-                     peer_ip_addr=peer_ip,
-                     peer_port=server_port,
-                     payload="")
-        conn.sendto(syn.to_bytes(), (router_addr, router_port))
+    syn = Packet(packet_type=PacketType.SYN.value,
+                 seq_num=1,
+                 peer_ip_addr=peer_ip,
+                 peer_port=server_port,
+                 payload="")
 
-        # Try to receive a response within timeout
-        conn.settimeout(timeout)
-        print('Waiting for a response')
-        while True:
+    #syn_thread = Timer(send_packet, (conn, syn, router_addr, router_port))
+
+    send_packet(conn, syn, router_addr, router_port)
+    # Try to receive a response within timeout
+    conn.settimeout(timeout)
+    print('Waiting for a response')
+    timeout_count = 0
+    while True:
+        try:
             response, sender = conn.recvfrom(1024)
             p = Packet.from_bytes(response)
             print(p)
-            if p.packet_type == PacketType.SYN_ACK.value:
-                break
-
-        ack = Packet(packet_type=PacketType.ACK.value,
-                     seq_num=3,
-                     peer_ip_addr=peer_ip,
-                     peer_port=server_port,
-                     payload="")
-        conn.sendto(ack.to_bytes(), (router_addr, router_port))
-        return True
-    except socket.timeout:
-        print('No response after {}s'.format(timeout))
-        return False
+            if p.packet_type == PacketType.SYN_ACK.value: # Received SYN ACK
+                ack = Packet(packet_type=PacketType.ACK.value,
+                             seq_num=3,
+                             peer_ip_addr=peer_ip,
+                             peer_port=server_port,
+                             payload="")
+                send_packet(conn, ack, router_addr, router_port)
+                return True
+        except socket.timeout:
+            timeout_count += 1
+            if timeout_count > 4:
+                return False
+            send_packet(conn, syn, router_addr, router_port)
+            continue
 
 
 def run_client(router_addr, router_port, server_addr, server_port, request):
