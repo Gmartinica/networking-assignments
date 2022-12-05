@@ -91,7 +91,7 @@ def three_way_handshake(router_addr, router_port, server_addr, server_port):
 def run_client(router_addr, router_port, server_addr, server_port, request):
     peer_ip = ipaddress.ip_address(socket.gethostbyname(server_addr))
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    timeout = 5
+    timeout = 30
     try:
         p = Packet(packet_type=0,
                    seq_num=1,
@@ -120,7 +120,9 @@ def run_client(router_addr, router_port, server_addr, server_port, request):
                              payload="")
                 conn.sendto(ack.to_bytes(), sender)
             elif p.packet_type == PacketType.FIN.value:
-                print("FIN PACKET")
+                print("FIN PACKET")                
+                print(receiver.get_packets())
+                
                 if receiver.all_packets_received(p):
                     receiver.insert(p)
                     fin_ack = Packet(packet_type=PacketType.ACK.value,
@@ -188,8 +190,8 @@ else:
         exit(1)
 http_request = HttpRequest.create_request(request)
 print(http_request)
-if three_way_handshake(args.routerhost, args.routerport, args.serverhost, args.serverport):
-    print("Got through handshake")
-else:
-    exit(4)
+# if three_way_handshake(args.routerhost, args.routerport, args.serverhost, args.serverport):
+#     print("Got through handshake")
+# else:
+#     exit(4)
 run_client(args.routerhost, args.routerport, args.serverhost, args.serverport, http_request)

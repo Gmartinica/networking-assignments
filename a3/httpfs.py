@@ -13,6 +13,7 @@ from threading import Timer, Lock
 import udp
 
 ack_tracker = list()
+all_processes = []
 
 
 # Todo not tested yet only the overview
@@ -20,12 +21,15 @@ ack_tracker = list()
 def three_way_handshake_server(conn):
     start = time.time()
     print("In three way")
+    result = False
     while True:
         if time.time() - start > 15:
+            result = False
             return False
         data, sender = conn.recvfrom(1024)  # waiting for SYN
         router_addr, router_port = sender
         p = Packet.from_bytes(data)
+        print("3wayrecived syn")
         if p.packet_type == 3:  # received syn  so we will send synAck
             seq_start = p.seq_num
             syn_ack = Packet(packet_type=PacketType.SYN_ACK.value,
@@ -37,24 +41,37 @@ def three_way_handshake_server(conn):
 
             # Now wait for ack
             data, sender = conn.recvfrom(1024)  # waiting for ACK
+            
             p = Packet.from_bytes(data)
-            if p.packet_type == PacketType.ACK.value and p.seq_num == seq_start + 2:  # received ACK so we are good to go
-                return True
+            print("3wayrecived ack " + str(p.packet_type) + '  ' + str(PacketType.ACK.value))
+            print(p)
+            if p.packet_type == PacketType.ACK.value :  # received ACK so we are good to go // and p.seq_num == seq_start + 2
+                result= True
+                break
+                
+    return result
 
 def run_server(port):
     conn = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:
         conn.bind(('', port))
-        conn.settimeout(20)
+        conn.settimeout(30)
         print('Echo server is listening at', port)
-        if three_way_handshake_server(conn):
-            while True:
-                data, sender = conn.recvfrom(1024)
-                handle_client(conn, data, sender)
+        #if three_way_handshake_server(conn):
+        while True:
+            data, sender = conn.recvfrom(1024)
+            handle_client(conn, data, sender)
         else:
             print("Something went wrong with 3 way handshake")
             exit(1)
 
+
+    except socket.timeout:
+        print("client terminated the connection")
+        for process in all_processes:
+            process.cancel()
+        exit(1)
+        
     finally:
         conn.close()
 
@@ -68,15 +85,18 @@ def ack_all(dict):
 
 
 def resend_packets(conn, packet_in_byte, sender, q):
+    global all_processes
     if not (ack_tracker[q][1]):
         print("resending packet" + str(q))
         t2 = Timer(3, resend_packets, [conn, packet_in_byte, sender, q])
+        all_processes.append(t2)
         conn.sendto(packet_in_byte, sender)
         t2.start()
 
 
 def handle_client(conn, data, sender):
     global ack_tracker
+    global all_processes
     lock = Lock()
     try:
         data = [Packet.from_bytes(data)]
@@ -99,90 +119,171 @@ def handle_client(conn, data, sender):
 
         a = 0
         b = 1
-        while not (ack_all(ack_tracker)):
-            print(ack_all(ack_tracker))
-            print("loop : "+str(a))
-            # for p in res_packets:
-            # for i in range(0, (len(res_packets)-1)):
-            print("b" + str(b))
-            if b >= len(res_packets):
-                print("HI")
-                responseF, senderF = conn.recvfrom(1024)
-                rec_packF = Packet.from_bytes(responseF)
-                print("GOT HERE ACK " + str(rec_packF.seq_num))
-                print(rec_packF)
+        if len(ack_tracker) < 4:
+            while not (ack_all(ack_tracker)):
+                print(ack_all(ack_tracker))
+                print("loop : "+str(a))
+                # for p in res_packets:
+                # for i in range(0, (len(res_packets)-1)):
+                print("b" + str(b))
+                if b >= len(res_packets):
+                    print("HI***********")
+                    responseF, senderF = conn.recvfrom(1024)
+                    rec_packF = Packet.from_bytes(responseF)
+                    print("(4)GOT HERE ACK " + str(rec_packF.seq_num))
+                    print(rec_packF)
+                    lock.acquire()
+                    ack_tracker[rec_packF.seq_num][1] = True
+                    lock.release()
+                    continue
+
+                p1 = res_packets[a]
+
+                if ack_tracker[p1.seq_num][1]:  # if we already have ack of the left most packet we slide
+                    a = a + 1
+                    continue
+
+                if ack_tracker[p1.seq_num][0]== True and ack_tracker[p1.seq_num][1] == False :  # if we already have ack of the left most packet we slide
+                    responseF, senderF = conn.recvfrom(1024)
+                    rec_packF = Packet.from_bytes(responseF)
+                    print("(3)GOT HERE ACK " + str(rec_packF.seq_num))
+                    print(rec_packF)
+                    lock.acquire()
+                    ack_tracker[rec_packF.seq_num][1] = True
+                    lock.release()
+                    if rec_packF.seq_num == p1.seq_num:
+                        a = a + 1
+                        continue
+
+                t1 = Timer(3, resend_packets, [conn, p1.to_bytes(), sender, p1.seq_num])
+                if not (ack_tracker[p1.seq_num][0]):
+                    print("sending packet " + str(p1.seq_num))
+                    lock.acquire()
+                    ack_tracker[p1.seq_num][0] = True
+                    lock.release()
+                    conn.sendto(p1.to_bytes(), sender)
+                    all_processes.append(t1)
+                    t1.start()
+
+                response, sender1 = conn.recvfrom(1024)
+                rec_pack = Packet.from_bytes(response)
+                print("(2) rec ack " + str(rec_pack.seq_num))
+                print(rec_pack)
                 lock.acquire()
-                ack_tracker[rec_packF.seq_num][1] = True
+                ack_tracker[rec_pack.seq_num][1] = True
                 lock.release()
-                continue
                 
-            p1 = res_packets[a]
-            p2 = res_packets[b]
-            
-            if ack_tracker[p1.seq_num][1]:  # if we already have ack of the left most packet we slide
-                a = a + 1
-                b = b + 1
-                continue
-            
 
-            # send the packets if we already havent sent them
-            
-            t1 = Timer(3, resend_packets, [conn, p1.to_bytes(), sender, p1.seq_num])
-            if not (ack_tracker[p1.seq_num][0]):
-                print("sending packet " + str(p1.seq_num))
-                lock.acquire()
-                ack_tracker[p1.seq_num][0] = True
-                lock.release()
-                conn.sendto(p1.to_bytes(), sender)
-                t1.start()
 
-            t2 = Timer(3, resend_packets, [conn, p2.to_bytes(), sender, p2.seq_num])
-            if not (ack_tracker[p2.seq_num][0]):
-                print("sending packet " + str(p2.seq_num))
-                lock.acquire()
-                ack_tracker[p2.seq_num][0] = True
-                lock.release()
-                conn.sendto(p2.to_bytes(), sender)
-                t2.start()
+        else:
+            while not (ack_all(ack_tracker)):
+                print(ack_all(ack_tracker))
+                print("loop : "+str(a))
+                # for p in res_packets:
+                # for i in range(0, (len(res_packets)-1)):
+                print("b" + str(b))
+                if b >= len(res_packets):
+                    print("HI***********")
+                    responseF, senderF = conn.recvfrom(1024)
+                    rec_packF = Packet.from_bytes(responseF)
+                    print("(4)GOT HERE ACK " + str(rec_packF.seq_num))
+                    print(rec_packF)
+                    lock.acquire()
+                    ack_tracker[rec_packF.seq_num][1] = True
+                    lock.release()
+                    continue
 
-            response, sender1 = conn.recvfrom(1024)
-            rec_pack = Packet.from_bytes(response)
-            print("rec ack " + str(rec_pack.seq_num))
-            print(rec_pack)
-            lock.acquire()
-            ack_tracker[rec_pack.seq_num][1] = True
-            lock.release()
+                p1 = res_packets[a]
+                p2 = res_packets[b]
 
-            if rec_pack.seq_num == p2.seq_num:
-                t2.cancel()
-                response2, sender2 = conn.recvfrom(1024)
-                rec_pack2 = Packet.from_bytes(response2)
-                print("rec ack " + str(rec_pack2.seq_num))
-                print(rec_pack2)
-                lock.acquire()
-                ack_tracker[rec_pack2.seq_num][1] = True
-                lock.release()
-                if rec_pack.seq_num == p1.seq_num:
-                    t1.cancel()
+                if ack_tracker[p1.seq_num][1]:  # if we already have ack of the left most packet we slide
                     a = a + 1
                     b = b + 1
                     continue
-            elif rec_pack.seq_num == p1.seq_num:
-                t1.cancel()
-                a = a + 1
-                b = b + 1
-                continue
 
-            # # TODO msg = creat_msg(type(get/post), )
-            # num_of_packets = math.ceil(len(msg) / PAYLOAD_SIZE)
-            # packets = list()
-            # PacketsConverter.create_packets(msg, num_of_packets, packets, p.peer_ip_addr, p.peer_port)
-            # 1         1
+                if ack_tracker[p1.seq_num][0]== True and ack_tracker[p1.seq_num][1] == False :  # if we already have ack of the left most packet we slide
+                    responseF, senderF = conn.recvfrom(1024)
+                    rec_packF = Packet.from_bytes(responseF)
+                    print("(3)GOT HERE ACK " + str(rec_packF.seq_num))
+                    print(rec_packF)
+                    lock.acquire()
+                    ack_tracker[rec_packF.seq_num][1] = True
+                    lock.release()
+                    if rec_packF.seq_num == p1.seq_num:
+                        a = a + 1
+                        b = b + 1
+                        continue
 
-            # How to send a reply.
-            # The peer address of the packet p is the address of the client already.
-            # We will send the same payload of p. Thus we can re-use either `data` or `p`.
-            # conn.sendto(p.to_bytes(), sender)
+                # send the packets if we already havent sent them
+
+                t1 = Timer(3, resend_packets, [conn, p1.to_bytes(), sender, p1.seq_num])
+                if not (ack_tracker[p1.seq_num][0]):
+                    print("sending packet " + str(p1.seq_num))
+                    lock.acquire()
+                    ack_tracker[p1.seq_num][0] = True
+                    lock.release()
+                    conn.sendto(p1.to_bytes(), sender)
+                    all_processes.append(t1)
+                    t1.start()
+
+                t2 = Timer(3, resend_packets, [conn, p2.to_bytes(), sender, p2.seq_num])
+                if not (ack_tracker[p2.seq_num][0]):
+                    print("sending packet " + str(p2.seq_num))
+                    lock.acquire()
+                    ack_tracker[p2.seq_num][0] = True
+                    lock.release()
+                    conn.sendto(p2.to_bytes(), sender)
+                    all_processes.append(t2)
+                    t2.start()
+
+                response, sender1 = conn.recvfrom(1024)
+                rec_pack = Packet.from_bytes(response)
+                print("(2) rec ack " + str(rec_pack.seq_num))
+                print(rec_pack)
+                lock.acquire()
+                ack_tracker[rec_pack.seq_num][1] = True
+                lock.release()
+
+                if rec_pack.seq_num == p2.seq_num:
+                    t2.cancel()
+                    response2, sender2 = conn.recvfrom(1024)
+                    rec_pack2 = Packet.from_bytes(response2)
+                    print("(1) rec ack " + str(rec_pack2.seq_num))
+                    print(rec_pack2)
+                    lock.acquire()
+                    ack_tracker[rec_pack2.seq_num][1] = True
+                    lock.release()
+                    if rec_pack.seq_num == p1.seq_num:
+                        t1.cancel()
+                        a = a + 1
+                        b = b + 1
+                        continue
+                elif rec_pack.seq_num == p1.seq_num:
+                    t1.cancel()
+                    if b == len(res_packets)-1:
+                        responseF, senderF = conn.recvfrom(1024)
+                        rec_packF = Packet.from_bytes(responseF)
+                        print("(0) ACK " + str(rec_packF.seq_num))
+                        print(rec_packF)
+                        lock.acquire()
+                        ack_tracker[rec_packF.seq_num][1] = True
+                        lock.release()
+                    print("************")
+                    print(ack_all(ack_tracker))
+                    a = a + 1
+                    b = b + 1
+                    continue
+
+                # # TODO msg = creat_msg(type(get/post), )
+                # num_of_packets = math.ceil(len(msg) / PAYLOAD_SIZE)
+                # packets = list()
+                # PacketsConverter.create_packets(msg, num_of_packets, packets, p.peer_ip_addr, p.peer_port)
+                # 1         1
+
+                # How to send a reply.
+                # The peer address of the packet p is the address of the client already.
+                # We will send the same payload of p. Thus we can re-use either `data` or `p`.
+                # conn.sendto(p.to_bytes(), sender)
 
     except Exception as e:
         print("Error: ", e)

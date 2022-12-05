@@ -9,7 +9,11 @@ class ReceiverWindow:
 
     def insert(self, packet):
         """Inserts packet of type Packet to the list in order"""
-        if packet.seq_num not in self.rec_packets:
+        received_sequences = []
+        if len(self.rec_packets) != 0:
+            for p in self.rec_packets:
+                received_sequences.append(p[0])
+        if packet.seq_num not in received_sequences:
             self.rec_packets.append([packet.seq_num, packet])
             tmp = sorted(self.rec_packets, key=lambda x: x[0])
             self.rec_packets = tmp
