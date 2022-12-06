@@ -145,7 +145,7 @@ def run_client(router_addr, router_port, server_addr, server_port, request):
                     send_packet(conn, ack, router_addr, router_port)
                     conn.sendto(req.to_bytes(), (router_addr, router_port))
             except Exception as e:
-                print("EXCEPTION")
+                print("RESENDING REQUEST")
                 conn.sendto(req.to_bytes(), (router_addr, router_port))
                 continue
             '''
