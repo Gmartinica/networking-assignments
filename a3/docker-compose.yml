@@ -2,19 +2,15 @@ version: '3'
 services:
   router:
       build: ./router/source
-      ports:
-        - "3000:3000"
       networks:
         - a3
   server:
     build: ./server
-    ports:
-      - "8080:8080"
     networks:
       - a3
   client:
     build: ./client
-    command: ["python", "-u", "httpc.py", "post", "router:3000", "-h", "Content-Type:application/json", "--d", "{'Assignment': 1}"]
+    command: ["python", "-u", "httpc.py", "post", "/lol", "-h", "Content-Type:application/json", "--d", "{'Assignment': 1}"]
     networks:
       - a3
 
